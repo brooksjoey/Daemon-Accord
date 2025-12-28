@@ -1,5 +1,3 @@
-'use client';
-
 import { isMockMode } from '@/lib/api/client';
 import { Badge } from '@/components/ui/Badge';
 

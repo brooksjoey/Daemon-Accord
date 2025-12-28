@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Plus } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ConnectorsPage() {
   const connectors = await getConnectors();
 

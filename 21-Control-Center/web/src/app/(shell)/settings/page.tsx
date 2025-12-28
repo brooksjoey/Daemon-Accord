@@ -2,6 +2,8 @@ import { isMockMode } from '@/lib/api/client';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 
+export const dynamic = 'force-dynamic';
+
 export default function SettingsPage() {
   const mockMode = isMockMode();
   const apiBase = process.env.NEXT_PUBLIC_DAEMON_ACCORD_API_BASE || 'http://localhost:8082';
