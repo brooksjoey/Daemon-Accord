@@ -178,7 +178,7 @@ Fixed bugs in Ultimate Stealth and Custom Executors, positioned them correctly a
 
 ### Documentation Updated
 - `sales/ONE_PAGER.md` - Updated pricing tiers
-- `PRODUCTION_READINESS_REPORT.md` - Added execution strategies section
+- `../reports/PRODUCTION_READINESS_REPORT.md` - Added execution strategies section
 - `docs/SECURITY_AND_COMPLIANCE.md` - Updated enterprise features
 - `docs/EXECUTION_STRATEGIES.md` - New comprehensive guide
 

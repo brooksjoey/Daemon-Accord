@@ -173,7 +173,7 @@ docker compose config
 
 ### Production Readiness
 - [x] **Proof Pack:** `scripts/proof_pack/run_proof_pack.py`
-- [x] **Production Readiness Report:** `PRODUCTION_READINESS_REPORT.md`
+- [x] **Production Readiness Report:** `../reports/PRODUCTION_READINESS_REPORT.md`
 - [x] **One-Command Demo:** `scripts/demo.sh` (Linux/Mac) or `scripts/demo.ps1` (Windows)
 
 ---

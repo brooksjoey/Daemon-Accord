@@ -101,7 +101,7 @@ git push -u origin main
 - Docker files
 - Scripts
 - `README.md`
-- `PRODUCTION_READINESS_REPORT.md`
+- `../reports/PRODUCTION_READINESS_REPORT.md`
 - `LICENSE`
 
 ### 📦 Archived to `docs/history/`

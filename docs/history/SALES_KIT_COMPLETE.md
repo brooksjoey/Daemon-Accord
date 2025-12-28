@@ -102,7 +102,7 @@ Complete "Sales Kit" folder created with factual, proof-backed materials for LOI
 - `sales/ROI_CALCULATOR.md` - ROI calculation model and examples
 
 ### Updated Files
-- `PRODUCTION_READINESS_REPORT.md` - Updated with proof pack references, removed gray-area language
+- `../reports/PRODUCTION_READINESS_REPORT.md` - Updated with proof pack references, removed gray-area language
 
 ---
 

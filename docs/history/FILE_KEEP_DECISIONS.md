@@ -8,7 +8,7 @@
 
 ### Essential Files
 - ✅ **README.md** - Main entry point, buyer-facing
-- ✅ **PRODUCTION_READINESS_REPORT.md** - Buyer-facing readiness report
+- ✅ **docs/reports/PRODUCTION_READINESS_REPORT.md** - Buyer-facing readiness report
 - ✅ **LICENSE** - Required legal file
 - ✅ **.gitignore** - Required for git
 - ✅ **docker-compose.yml** - Development deployment
@@ -74,7 +74,7 @@
 
 ### Keep in Root (6 files)
 - README.md
-- PRODUCTION_READINESS_REPORT.md
+- docs/reports/PRODUCTION_READINESS_REPORT.md
 - LICENSE
 - .gitignore
 - docker-compose.yml

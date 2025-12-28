@@ -8,7 +8,7 @@
 
 ---
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-28a745?style=for-the-badge)](PRODUCTION_READINESS_REPORT.md)
+[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-28a745?style=for-the-badge)](docs/reports/PRODUCTION_READINESS_REPORT.md)
 [![License](https://img.shields.io/badge/License-See%20LICENSE-0078d4?style=for-the-badge)](LICENSE)
 [![Deployment](https://img.shields.io/badge/Deploy-One%20Command-00a4ef?style=for-the-badge)](docs/DEPLOYMENT.md)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=for-the-badge&logo=python)](https://www.python.org/)
@@ -257,7 +257,7 @@ ls -la artifacts/
 - **CI/CD Pipeline:** Automated tests, security scanning, quality gates
 - **One-Command Deployment:** Docker Compose for dev and production
 
-**See:** [Production Readiness Report](PRODUCTION_READINESS_REPORT.md) for complete validation evidence.
+**See:** [Production Readiness Report](docs/reports/PRODUCTION_READINESS_REPORT.md) for complete validation evidence.
 
 ---
 
@@ -502,7 +502,7 @@ pytest tests/e2e/        # E2E tests
 
 </div>
 
-**See:** [Production Readiness Report](PRODUCTION_READINESS_REPORT.md) for complete validation.
+**See:** [Production Readiness Report](docs/reports/PRODUCTION_READINESS_REPORT.md) for complete validation.
 
 ---
 
@@ -647,7 +647,7 @@ See [LICENSE](LICENSE) file for details.
 
 **Policy-Driven Web Automation Platform**
 
-[Production Ready](PRODUCTION_READINESS_REPORT.md) • [Documentation](docs/) • [Deployment](docs/DEPLOYMENT.md) • [Security](docs/SECURITY_AND_COMPLIANCE.md)
+[Production Ready](docs/reports/PRODUCTION_READINESS_REPORT.md) • [Documentation](docs/) • [Deployment](docs/DEPLOYMENT.md) • [Security](docs/SECURITY_AND_COMPLIANCE.md)
 
 **Version 1.0.0** • **Last Updated:** 2024-01-01
 

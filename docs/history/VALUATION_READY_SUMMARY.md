@@ -69,7 +69,7 @@
 ## Key Documents
 
 1. **`CHIEF_ENGINEER_FINAL_REPORT.md`** - Complete technical report
-2. **`PRODUCTION_READINESS_REPORT.md`** - Buyer-facing summary
+2. **`../reports/PRODUCTION_READINESS_REPORT.md`** - Buyer-facing summary
 3. **`SECURITY_ARCHITECTURE.md`** - Security layer explanation
 4. **`docs/API_USAGE.md`** - Integration guide
 5. **`SECURITY.md`** - Security documentation

@@ -28,7 +28,7 @@
 
 **Keep (Production/User-Facing):**
 - `README.md` - Main project overview
-- `PRODUCTION_READINESS_REPORT.md` - Buyer-facing readiness
+- `docs/reports/PRODUCTION_READINESS_REPORT.md` - Buyer-facing readiness
 - `docs/` - All documentation
 - `sales/` - Sales materials
 - Component READMEs (in each folder)
@@ -212,7 +212,7 @@ git push -u origin main
 
 ### Keep (User/Buyer-Facing)
 - ✅ `README.md`
-- ✅ `PRODUCTION_READINESS_REPORT.md`
+- ✅ `docs/reports/PRODUCTION_READINESS_REPORT.md`
 - ✅ `docs/` (all user-facing docs)
 - ✅ `sales/` (all sales materials)
 - ✅ All source code

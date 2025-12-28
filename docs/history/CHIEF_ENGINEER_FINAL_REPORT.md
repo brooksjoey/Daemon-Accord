@@ -164,7 +164,7 @@ The Accord Engine has been successfully upgraded from **70% complete** to **prod
 ### New Files (Documentation)
 - `CHIEF_ENGINEER_ACTION_PLAN.md`
 - `CHIEF_ENGINEER_STATUS.md`
-- `PRODUCTION_READINESS_REPORT.md`
+- `../reports/PRODUCTION_READINESS_REPORT.md`
 - `SECURITY_ARCHITECTURE.md`
 - `04-Control-Plane-Orchestrator/docs/API_USAGE.md`
 - `04-Control-Plane-Orchestrator/docs/postman_collection.json`
@@ -255,7 +255,7 @@ cat .github/workflows/ci.yml
 
 ### 3. Documentation Package
 Provide buyers with:
-1. `PRODUCTION_READINESS_REPORT.md` - Executive summary
+1. `../reports/PRODUCTION_READINESS_REPORT.md` - Executive summary
 2. `CHIEF_ENGINEER_ACTION_PLAN.md` - Technical roadmap
 3. `SECURITY_ARCHITECTURE.md` - Security explanation
 4. `docs/API_USAGE.md` - Integration guide

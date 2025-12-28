@@ -77,7 +77,7 @@ Following the recommendations from `CHIEF_ENGINEER_STATUS.md`:
 ### Documentation ✅
 - `CHIEF_ENGINEER_ACTION_PLAN.md`
 - `CHIEF_ENGINEER_FINAL_REPORT.md`
-- `PRODUCTION_READINESS_REPORT.md`
+- `../reports/PRODUCTION_READINESS_REPORT.md`
 - `VALUATION_READY_SUMMARY.md`
 
 ---
