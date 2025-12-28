@@ -90,3 +90,7 @@ secrets/
 config.local.*
 *.local
 
+# Git backups (security risk)
+.git.backup/
+*.git.backup
+
