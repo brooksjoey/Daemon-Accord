@@ -5,13 +5,13 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 
-from compliance.models import (
+from src.compliance.models import (
     DomainPolicy,
     AuditLog,
     AuthorizationMode,
     PolicyAction,
 )
-from compliance.policy_enforcer import PolicyEnforcer
+from src.compliance.policy_enforcer import PolicyEnforcer
 
 
 @pytest.fixture

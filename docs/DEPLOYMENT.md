@@ -1,6 +1,6 @@
-# Accord Engine - Deployment Guide
+# Daemon Accord - Deployment Guide
 
-Complete guide for deploying Accord Engine in development and production environments.
+Complete guide for deploying Daemon Accord in development and production environments.
 
 ---
 
@@ -83,7 +83,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@postgres:5432/accord_engine` | PostgreSQL connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@postgres:5432/daemon_accord` | PostgreSQL connection string |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis connection URL |
 | `MAX_CONCURRENT_JOBS` | `100` (dev) / `10` (prod) | Maximum concurrent job executions |
 | `WORKER_COUNT` | `5` (dev) / `1` (prod) | Number of worker processes |
@@ -100,7 +100,7 @@ docker compose -f docker-compose.prod.yml up -d
 |----------|---------|-------------|
 | `MAX_BROWSERS` | `5` (dev) / `1` (prod) | Maximum browser instances |
 | `REDIS_URL` | `redis://redis:6379/0` | Redis connection URL |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@postgres:5432/accord_engine` | PostgreSQL connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@postgres:5432/daemon_accord` | PostgreSQL connection string |
 
 ### PostgreSQL
 
@@ -108,7 +108,7 @@ docker compose -f docker-compose.prod.yml up -d
 |----------|---------|-------------|
 | `POSTGRES_USER` | `postgres` | Database user |
 | `POSTGRES_PASSWORD` | `postgres` | Database password |
-| `POSTGRES_DB` | `accord_engine` | Database name |
+| `POSTGRES_DB` | `daemon_accord` | Database name |
 | `POSTGRES_PORT` | `5432` | Database port |
 
 ### Redis

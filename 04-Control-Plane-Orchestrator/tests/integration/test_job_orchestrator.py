@@ -4,8 +4,8 @@ Integration tests for JobOrchestrator.
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime
-from control_plane.job_orchestrator import JobOrchestrator
-from control_plane.models import Job, JobStatus
+from src.control_plane.job_orchestrator import JobOrchestrator
+from src.control_plane.models import Job, JobStatus
 
 
 @pytest.mark.asyncio

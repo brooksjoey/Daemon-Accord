@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Accord Engine - Workspace Cleanup" -ForegroundColor Cyan
+Write-Host "Daemon Accord - Workspace Cleanup" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

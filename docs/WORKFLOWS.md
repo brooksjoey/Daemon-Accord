@@ -6,7 +6,7 @@
 
 ## Overview
 
-Accord Engine provides three production-ready workflow templates that solve real business problems:
+Daemon Accord provides three production-ready workflow templates that solve real business problems:
 
 1. **Page Change Detection** - Monitor public pages for changes and alert
 2. **Job Posting Monitor** - Extract structured job posting data and alert on new postings

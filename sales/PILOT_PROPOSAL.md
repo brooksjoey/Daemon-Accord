@@ -1,6 +1,6 @@
-# Accord Engine - 2-Week Pilot Proposal
+# Daemon Accord - 2-Week Pilot Proposal
 
-**Purpose:** Validate Accord Engine with your specific use cases and quantify ROI
+**Purpose:** Validate Daemon Accord with your specific use cases and quantify ROI
 
 ---
 
@@ -18,7 +18,7 @@
 ### Week 1: Setup and Initial Workflows
 
 **Days 1-2: Setup**
-- Deploy Accord Engine on your infrastructure (or ours)
+- Deploy Daemon Accord on your infrastructure (or ours)
 - Configure domain policies and rate limits
 - Set up webhook endpoints for alerts
 - Train team on API usage
@@ -125,7 +125,7 @@
 ### Step 2: Deployment (Days 1-2)
 
 **Activities:**
-- Deploy Accord Engine (your infrastructure or ours)
+- Deploy Daemon Accord (your infrastructure or ours)
 - Configure domain policies
 - Set up webhooks
 - Initial testing

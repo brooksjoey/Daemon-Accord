@@ -10,7 +10,7 @@ import redis.asyncio as redis
 from sqlmodel import select
 import structlog
 
-from ..exceptions import DatabaseError, RedisError
+from src.exceptions import DatabaseError, RedisError
 from .models import Job, JobStatus
 
 if TYPE_CHECKING:

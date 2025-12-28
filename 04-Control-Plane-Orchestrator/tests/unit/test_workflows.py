@@ -10,9 +10,9 @@ import os
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from workflows.workflow_registry import WorkflowRegistry, get_workflow_registry
-from workflows.workflow_executor import WorkflowExecutor
-from workflows.models import WorkflowDefinition, WorkflowStatus
+from src.workflows.workflow_registry import WorkflowRegistry, get_workflow_registry
+from src.workflows.workflow_executor import WorkflowExecutor
+from src.workflows.models import WorkflowDefinition, WorkflowStatus
 
 
 def test_workflow_registry_initialization():

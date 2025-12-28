@@ -1,4 +1,4 @@
-# Accord Engine - One Pager
+# Daemon Accord - One Pager
 
 **Policy-Driven Web Automation Platform**
 
@@ -18,7 +18,7 @@ Organizations need to monitor, extract, and validate web content at scale, but f
 
 ## The Solution
 
-**Accord Engine** is a policy-driven automation platform that:
+**Daemon Accord** is a policy-driven automation platform that:
 
 - ✅ **Automates Web Monitoring:** Monitor pages for changes, extract structured data, verify uptime
 - ✅ **Policy-Controlled:** Domain allowlist/denylist, rate limits, concurrency controls, authorization-based access

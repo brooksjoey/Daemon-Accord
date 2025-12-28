@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime
 from uuid import uuid4
 
-from control_plane.job_orchestrator import JobOrchestrator, JobStatus
-from control_plane.models import Job
+from src.control_plane.job_orchestrator import JobOrchestrator, JobStatus
+from src.control_plane.models import Job
 
 
 @pytest.mark.asyncio

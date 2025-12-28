@@ -256,7 +256,7 @@ class ExecutionWorker:
 async def main():
     """Main entry point."""
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    database_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/accord_engine")
+    database_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/daemon_accord")
     max_browsers = int(os.getenv("MAX_BROWSERS", "20"))
     
     worker = ExecutionWorker(

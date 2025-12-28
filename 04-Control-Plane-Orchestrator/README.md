@@ -1,6 +1,6 @@
 # Control Plane Orchestrator
 
-Job orchestration and management service for Accord Engine.
+Job orchestration and management service for Daemon Accord.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ pip install -r requirements.txt
 Set environment variables or create `.env` file:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/accord_engine
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/daemon_accord
 REDIS_URL=redis://localhost:6379/0
 API_HOST=0.0.0.0
 API_PORT=8080
@@ -62,7 +62,7 @@ docker build -t control-plane .
 
 # Run (requires Redis and PostgreSQL)
 docker run -p 8080:8080 \
-  -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/accord_engine \
+  -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@host.docker.internal:5432/daemon_accord \
   -e REDIS_URL=redis://host.docker.internal:6379/0 \
   control-plane
 ```

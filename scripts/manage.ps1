@@ -1,4 +1,4 @@
-# Accord Engine Management Script for Windows
+# Daemon Accord Management Script for Windows
 # Usage: .\scripts\manage.ps1 <command> [options]
 
 param(
@@ -41,7 +41,7 @@ $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $projectRoot
 
 function Show-Status {
-    Write-Host "`n=== Accord Engine Status ===" -ForegroundColor Cyan
+    Write-Host "`n=== Daemon Accord Status ===" -ForegroundColor Cyan
     Write-Host "Compose file: $composeFile" -ForegroundColor Gray
     
     # Check if services are running
@@ -82,7 +82,7 @@ function Show-Status {
 }
 
 function Start-Services {
-    Write-Host "Starting Accord Engine..." -ForegroundColor Cyan
+    Write-Host "Starting Daemon Accord..." -ForegroundColor Cyan
     Write-Host "Using compose file: $composeFile" -ForegroundColor Gray
     
     if ($Prod) {
@@ -106,7 +106,7 @@ function Start-Services {
 }
 
 function Stop-Services {
-    Write-Host "Stopping Accord Engine..." -ForegroundColor Cyan
+    Write-Host "Stopping Daemon Accord..." -ForegroundColor Cyan
     docker compose -f $composeFile down
     
     if ($LASTEXITCODE -eq 0) {
@@ -147,7 +147,7 @@ function Run-ProofPack {
 }
 
 function Restart-Services {
-    Write-Host "Restarting Accord Engine..." -ForegroundColor Cyan
+    Write-Host "Restarting Daemon Accord..." -ForegroundColor Cyan
     Stop-Services
     Start-Sleep -Seconds 2
     Start-Services

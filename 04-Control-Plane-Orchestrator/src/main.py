@@ -169,7 +169,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Control Plane Orchestrator API",
     description="""
-    Job orchestration and management API for Accord Engine.
+    Job orchestration and management API for Daemon Accord.
     
     ## Features
     

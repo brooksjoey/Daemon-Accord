@@ -1,4 +1,4 @@
-Accord Engine - Core Execution Module
+Daemon Accord - Core Execution Module
 =====================================
 
 > A powerful, adaptive browser automation engine designed to maximize data extraction success rates.

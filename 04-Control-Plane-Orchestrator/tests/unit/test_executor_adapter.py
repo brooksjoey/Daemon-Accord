@@ -5,7 +5,7 @@ Tests the adapter that bridges Control Plane with Execution Engine.
 """
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from control_plane.executor_adapter import ExecutorAdapter
+from src.control_plane.executor_adapter import ExecutorAdapter
 
 
 @pytest.mark.asyncio

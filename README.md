@@ -1,6 +1,6 @@
 <div align="center">
 
-# Accord Engine
+# Daemon Accord
 
 **Policy-Driven Web Automation Platform**
 
@@ -20,7 +20,7 @@
 
 ## 🎯 Overview
 
-Accord Engine is a **policy-driven web automation platform** designed for enterprise deployment. Built with compliance controls, comprehensive audit logging, and production-ready workflows, it transforms web automation from a technical capability into a **governed, auditable business process**.
+Daemon Accord is a **policy-driven web automation platform** designed for enterprise deployment. Built with compliance controls, comprehensive audit logging, and production-ready workflows, it transforms web automation from a technical capability into a **governed, auditable business process**.
 
 **Key Differentiators:**
 - ✅ **Policy-Driven:** Not a scraping tool—full compliance controls and audit trails
@@ -241,7 +241,7 @@ curl http://localhost:8082/api/v1/ops/status
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Accord Engine Platform                    │
+│                    Daemon Accord Platform                    │
 └─────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
@@ -482,7 +482,7 @@ pytest tests/e2e/        # E2E tests
 
 ## 🚀 Flexible Deployment Tiers
 
-Accord Engine scales from **starter deployments to enterprise-grade infrastructure**. Choose the tier that matches your workload and infrastructure.
+Daemon Accord scales from **starter deployments to enterprise-grade infrastructure**. Choose the tier that matches your workload and infrastructure.
 
 <div align="center">
 
@@ -617,7 +617,7 @@ See [LICENSE](LICENSE) file for details.
 
 ---
 
-## Accord Engine
+## Daemon Accord
 
 **Policy-Driven Web Automation Platform**
 

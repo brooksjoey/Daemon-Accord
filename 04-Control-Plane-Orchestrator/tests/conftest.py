@@ -7,23 +7,43 @@ import os
 from unittest.mock import Mock, AsyncMock
 from typing import AsyncGenerator
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+# Add parent directory to path for proper imports
+parent_path = os.path.join(os.path.dirname(__file__), "..")
+if parent_path not in sys.path:
+    sys.path.insert(0, parent_path)
+
+# Clear SQLModel metadata before imports to avoid table redefinition
+from sqlmodel import SQLModel
+SQLModel.metadata.clear()
 
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from config import ControlPlaneSettings
-from database import Database
-from control_plane.models import Job, JobExecution, JobStatus
+# Import using absolute path from src
+from src.config import ControlPlaneSettings
+from src.database import Database
+from src.control_plane.models import Job, JobExecution, JobStatus
+
+
+@pytest.fixture(autouse=True, scope="function")
+def reset_sqlmodel_metadata():
+    """
+    Reset SQLModel metadata before each test to avoid table redefinition errors.
+    This ensures test isolation.
+    """
+    # Clear metadata before test
+    SQLModel.metadata.clear()
+    yield
+    # Clear metadata after test
+    SQLModel.metadata.clear()
 
 
 @pytest.fixture
 def settings():
     """Test settings with in-memory/in-memory configurations."""
     return ControlPlaneSettings(
-        postgres_dsn="postgresql+asyncpg://test:test@localhost:5432/test_accord_engine",
+        postgres_dsn="postgresql+asyncpg://test:test@localhost:5432/test_daemon_accord",
         redis_url="redis://localhost:6379/1",  # Use DB 1 for tests
         max_concurrent_jobs=10,
         worker_count=2,
@@ -36,6 +56,10 @@ async def mock_redis():
     redis_client = AsyncMock(spec=redis.Redis)
     redis_client.get = AsyncMock(return_value=None)
     redis_client.setex = AsyncMock()
+    redis_client.delete = AsyncMock(return_value=1)  # Make async
+    redis_client.exists = AsyncMock(return_value=0)  # Make async
+    redis_client.incr = AsyncMock()
+    redis_client.decr = AsyncMock()
     redis_client.xadd = AsyncMock(return_value="msg-123-0")
     redis_client.xreadgroup = AsyncMock(return_value=[])
     redis_client.xack = AsyncMock()

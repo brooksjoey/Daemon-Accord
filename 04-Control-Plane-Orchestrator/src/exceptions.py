@@ -1,12 +1,12 @@
 """
-Custom exception hierarchy for Accord Engine.
+Custom exception hierarchy for Daemon Accord.
 
 Provides structured error handling with proper error propagation.
 """
 
 
-class AccordEngineException(Exception):
-    """Base exception for all Accord Engine errors."""
+class DaemonAccordException(Exception):
+    """Base exception for all Daemon Accord errors."""
     
     def __init__(self, message: str, error_code: str | None = None, details: dict | None = None):
         self.message = message
@@ -15,7 +15,7 @@ class AccordEngineException(Exception):
         super().__init__(self.message)
 
 
-class PolicyViolationError(AccordEngineException):
+class PolicyViolationError(DaemonAccordException):
     """Raised when a policy violation is detected."""
     
     def __init__(self, message: str, policy_action: str | None = None, domain: str | None = None, **kwargs):
@@ -67,7 +67,7 @@ class DomainNotAllowedError(PolicyViolationError):
         self.reason = reason
 
 
-class JobExecutionError(AccordEngineException):
+class JobExecutionError(DaemonAccordException):
     """Raised when job execution fails."""
     
     def __init__(self, message: str, job_id: str | None = None, **kwargs):
@@ -75,7 +75,7 @@ class JobExecutionError(AccordEngineException):
         self.job_id = job_id
 
 
-class JobNotFoundError(AccordEngineException):
+class JobNotFoundError(DaemonAccordException):
     """Raised when a job is not found."""
     
     def __init__(self, job_id: str, **kwargs):
@@ -84,7 +84,7 @@ class JobNotFoundError(AccordEngineException):
         self.job_id = job_id
 
 
-class DatabaseError(AccordEngineException):
+class DatabaseError(DaemonAccordException):
     """Raised when a database operation fails."""
     
     def __init__(self, message: str, operation: str | None = None, **kwargs):
@@ -92,7 +92,7 @@ class DatabaseError(AccordEngineException):
         self.operation = operation
 
 
-class RedisError(AccordEngineException):
+class RedisError(DaemonAccordException):
     """Raised when a Redis operation fails."""
     
     def __init__(self, message: str, operation: str | None = None, **kwargs):
@@ -100,7 +100,7 @@ class RedisError(AccordEngineException):
         self.operation = operation
 
 
-class ConfigurationError(AccordEngineException):
+class ConfigurationError(DaemonAccordException):
     """Raised when there's a configuration error."""
     
     def __init__(self, message: str, config_key: str | None = None, **kwargs):

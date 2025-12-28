@@ -5,7 +5,7 @@ Tests workflow execution against real API endpoints.
 """
 import pytest
 import httpx
-from control_plane.workflows.workflow_registry import get_workflow_registry
+from src.workflows.workflow_registry import get_workflow_registry
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,7 @@
 """
 Production Proof Pack Generator
 
-Generates buyer-grade evidence bundle proving Accord Engine works end-to-end.
+Generates buyer-grade evidence bundle proving Daemon Accord works end-to-end.
 Can be run on any fresh VM to demonstrate system functionality.
 
 Usage:
@@ -566,7 +566,7 @@ class ProofPackRunner:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate Production Proof Pack for Accord Engine"
+        description="Generate Production Proof Pack for Daemon Accord"
     )
     parser.add_argument(
         "--jobs",

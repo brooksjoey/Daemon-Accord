@@ -3,7 +3,7 @@ Unit tests for QueueManager.
 """
 import pytest
 from unittest.mock import AsyncMock, Mock
-from control_plane.queue_manager import QueueManager
+from src.control_plane.queue_manager import QueueManager
 
 
 @pytest.mark.asyncio

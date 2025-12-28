@@ -4,8 +4,8 @@ Unit tests for StateManager.
 import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock
-from control_plane.state_manager import StateManager
-from control_plane.models import Job, JobStatus
+from src.control_plane.state_manager import StateManager
+from src.control_plane.models import Job, JobStatus
 
 
 @pytest.mark.asyncio

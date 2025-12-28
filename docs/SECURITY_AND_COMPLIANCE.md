@@ -1,19 +1,19 @@
 # Security and Compliance
 
-Accord Engine is a **policy-driven automation platform** designed for compliance-safe web automation and data collection.
+Daemon Accord is a **policy-driven automation platform** designed for compliance-safe web automation and data collection.
 
 ---
 
 ## Overview
 
-Accord Engine provides comprehensive policy controls and audit logging to ensure all automation activities are:
+Daemon Accord provides comprehensive policy controls and audit logging to ensure all automation activities are:
 
 - **Compliant** with legal and ethical guidelines
 - **Traceable** through complete audit logs
 - **Controlled** through domain-level policies
 - **Authorized** based on customer authorization levels
 
-This document describes the compliance and security features that make Accord Engine suitable for enterprise deployment.
+This document describes the compliance and security features that make Daemon Accord suitable for enterprise deployment.
 
 ---
 
@@ -392,13 +392,13 @@ Enterprise tier customers have access to advanced execution strategies:
 
 ### Legal Compliance
 
-Accord Engine is designed to support legal and compliant web automation:
+Daemon Accord is designed to support legal and compliant web automation:
 
 - **Public Data:** Access to publicly available data
 - **Authorized Access:** Customer-authorized access to specific domains
 - **Internal Use:** Enterprise internal use cases
 
-**Important:** Users are responsible for ensuring their use of Accord Engine complies with:
+**Important:** Users are responsible for ensuring their use of Daemon Accord complies with:
 - Terms of Service of target websites
 - Applicable laws and regulations
 - Data protection requirements
@@ -406,7 +406,7 @@ Accord Engine is designed to support legal and compliant web automation:
 
 ### Ethical Use
 
-Accord Engine includes policy controls to promote ethical use:
+Daemon Accord includes policy controls to promote ethical use:
 
 - Rate limiting prevents abuse
 - Concurrency limits ensure fair usage
@@ -445,7 +445,7 @@ POST /api/v1/jobs?domain=example.com&url=https://example.com&authorization_mode=
 
 ## Summary
 
-Accord Engine provides comprehensive policy controls and audit logging to ensure:
+Daemon Accord provides comprehensive policy controls and audit logging to ensure:
 
 ✅ **Compliance:** All access is policy-driven and auditable  
 ✅ **Security:** Defense-in-depth policy enforcement  

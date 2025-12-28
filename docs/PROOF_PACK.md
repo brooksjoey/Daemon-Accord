@@ -1,6 +1,6 @@
 # Production Proof Pack
 
-**Purpose:** Generate buyer-grade evidence bundle proving Accord Engine works end-to-end on any fresh VM.
+**Purpose:** Generate buyer-grade evidence bundle proving Daemon Accord works end-to-end on any fresh VM.
 
 ---
 

@@ -13,7 +13,7 @@ class ControlPlaneSettings(BaseSettings):
     
     # Database
     postgres_dsn: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/accord_engine",
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/daemon_accord",
         validation_alias="DATABASE_URL",
         description="PostgreSQL connection string"
     )

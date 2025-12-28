@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-Accord Engine is a **policy-driven web automation platform** that has been validated for production deployment. This report documents the system's readiness based on:
+Daemon Accord is a **policy-driven web automation platform** that has been validated for production deployment. This report documents the system's readiness based on:
 
 - ✅ **Production Proof Pack:** End-to-end validation on fresh VM (see `docs/PROOF_PACK.md`)
 - ✅ **Test Coverage:** 50+ unit tests, integration tests, E2E validation

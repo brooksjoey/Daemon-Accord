@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Accord Engine - Repository Migration" -ForegroundColor Cyan
+Write-Host "Daemon Accord - Repository Migration" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -70,7 +70,7 @@ Write-Host "  ✅ Staged $fileCount files" -ForegroundColor Green
 Write-Host ""
 Write-Host "Step 4: Creating initial commit..." -ForegroundColor Yellow
 $commitMessage = @"
-Initial commit: Production-ready Accord Engine v1.0
+Initial commit: Production-ready Daemon Accord v1.0
 
 - Policy-driven web automation platform
 - Production-ready core executors (Vanilla, Stealth, Assault)
