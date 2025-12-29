@@ -10,9 +10,17 @@ from sqlmodel import SQLModel
 import structlog
 import os
 
-from .config import ControlPlaneSettings
-from .control_plane.models import Job, JobExecution
-from .compliance.models import DomainPolicy, AuditLog
+try:
+    from .config import ControlPlaneSettings
+    from .control_plane.models import Job, JobExecution
+    from .compliance.models import DomainPolicy, AuditLog
+    from .db.models_worker import JobAttempt, JobLease  # noqa: F401  (import populates SQLModel metadata)
+except ImportError:
+    # Support test imports that do `sys.path.insert(0, ".../src"); import database`
+    from config import ControlPlaneSettings
+    from control_plane.models import Job, JobExecution
+    from compliance.models import DomainPolicy, AuditLog
+    from db.models_worker import JobAttempt, JobLease  # noqa: F401
 
 logger = structlog.get_logger(__name__)
 

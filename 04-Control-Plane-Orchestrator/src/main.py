@@ -9,20 +9,46 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
+import logging
+import os
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
-from .config import ControlPlaneSettings
-from .database import Database
-from .control_plane.job_orchestrator import JobOrchestrator
-from .control_plane.models import JobStatus
-from .auth.rate_limiter import RateLimiter, rate_limit_middleware
-from .auth.api_key_auth import get_api_key_auth
-from .workflows.workflow_registry import get_workflow_registry
-from .workflows.workflow_executor import WorkflowExecutor
-from .workflows.models import WorkflowInput
-from .exceptions import PolicyViolationError, JobExecutionError, JobNotFoundError
+try:
+    # Package import (preferred): `uvicorn src.main:app`
+    from .config import ControlPlaneSettings
+    from .database import Database
+    from .control_plane.job_orchestrator import JobOrchestrator
+    from .control_plane.models import JobStatus
+    from .control_plane.queue_manager import QueueManager
+    from .auth.rate_limiter import RateLimiter, rate_limit_middleware
+    from .auth.api_key_auth import get_api_key_auth
+    from .workflows.workflow_registry import get_workflow_registry
+    from .workflows.workflow_executor import WorkflowExecutor
+    from .workflows.models import WorkflowInput
+    from .exceptions import PolicyViolationError, JobExecutionError, JobNotFoundError
+    from .api.internal_worker import router as internal_worker_router
+    from .api.internal_admin import router as internal_admin_router
+    from .services.lease_reaper import LeaseReaper
+    from .db.models_worker import JobLease, utcnow
+except ImportError:
+    # Support test imports that do `sys.path.insert(0, ".../src"); import main`
+    from config import ControlPlaneSettings
+    from database import Database
+    from control_plane.job_orchestrator import JobOrchestrator
+    from control_plane.models import JobStatus
+    from control_plane.queue_manager import QueueManager
+    from auth.rate_limiter import RateLimiter, rate_limit_middleware
+    from auth.api_key_auth import get_api_key_auth
+    from workflows.workflow_registry import get_workflow_registry
+    from workflows.workflow_executor import WorkflowExecutor
+    from workflows.models import WorkflowInput
+    from exceptions import PolicyViolationError, JobExecutionError, JobNotFoundError
+    from api.internal_worker import router as internal_worker_router
+    from api.internal_admin import router as internal_admin_router
+    from services.lease_reaper import LeaseReaper
+    from db.models_worker import JobLease, utcnow
 
 # Execution Engine imports (optional - will fail gracefully if not available)
 try:
@@ -94,7 +120,24 @@ async def lifespan(app: FastAPI):
     
     # Startup
     logger.info("control_plane_starting")
+    # In production, prefer migrations. In tests, we also skip heavy startup.
     await db.init_models()
+
+    if os.getenv("DISABLE_CONTROL_PLANE_STARTUP", "false").lower() == "true":
+        # Allow unit tests to import app without needing live Redis/Postgres/Playwright.
+        app.state.settings = settings
+        app.state.db = db
+        app.state.redis_client = redis_client
+        app.state.queue_manager = QueueManager(redis_client)
+        app.state._bg_tasks = []
+        logger.info("control_plane_startup_disabled_for_tests")
+        yield
+        return
+
+    # Make commonly-used objects available to routers via app.state
+    app.state.settings = settings
+    app.state.db = db
+    app.state.redis_client = redis_client
     
     # Initialize rate limiter
     rate_limiter = RateLimiter(redis_client=redis_client)
@@ -132,6 +175,65 @@ async def lifespan(app: FastAPI):
     # Initialize workflow executor
     workflow_executor = WorkflowExecutor(orchestrator)
     logger.info("workflow_executor_initialized")
+
+    # Share queue manager for internal worker endpoints.
+    app.state.queue_manager = orchestrator.queue_manager if orchestrator else QueueManager(redis_client)
+
+    # Background tasks (simple loops) for lease reaping and PEL reconciliation.
+    app.state._bg_tasks = []
+
+    async def lease_reaper_loop():
+        reaper = LeaseReaper(app.state.queue_manager)
+        interval = max(1, int(settings.lease_reaper_interval_seconds))
+        while True:
+            try:
+                async with db.session() as session:
+                    recovered = await reaper.run_once(session)
+                if recovered:
+                    logger.info("lease_reaper_recovered", count=recovered)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("lease_reaper_loop_error", error=str(e), exc_info=True)
+            await asyncio.sleep(interval)
+
+    async def pel_reconcile_loop():
+        interval = max(1, int(settings.pel_reconcile_interval_seconds))
+        idle_ms = int(max(1, int(settings.pel_idle_threshold_seconds)) * 1000)
+        stream_key = app.state.queue_manager.stream_key
+        streams = [
+            f"{stream_key}:emergency",
+            f"{stream_key}:high",
+            f"{stream_key}:normal",
+            f"{stream_key}:low",
+        ]
+        while True:
+            try:
+                async with db.session() as session:
+                    async def check_active_lease(job_id: str) -> bool:
+                        from sqlmodel import select
+                        q = select(JobLease).where(JobLease.job_id == job_id, JobLease.expires_at > utcnow())
+                        res = await session.execute(q)
+                        return res.scalars().first() is not None
+
+                    total = 0
+                    for s in streams:
+                        total += await app.state.queue_manager.pel_reconcile_requeue(
+                            stream=s,
+                            idle_ms=idle_ms,
+                            check_active_lease=check_active_lease,
+                            batch_size=200,
+                        )
+                if total:
+                    logger.info("pel_reconciled", requeued=total)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("pel_reconcile_loop_error", error=str(e), exc_info=True)
+            await asyncio.sleep(interval)
+
+    app.state._bg_tasks.append(asyncio.create_task(lease_reaper_loop()))
+    app.state._bg_tasks.append(asyncio.create_task(pel_reconcile_loop()))
     
     # NOTE: Workers are disabled in containerized deployments
     # The Execution Engine worker service handles job execution via Redis Streams
@@ -154,6 +256,13 @@ async def lifespan(app: FastAPI):
     logger.info("control_plane_shutting_down")
     if orchestrator:
         await orchestrator.shutdown()
+
+    # Stop background tasks
+    bg_tasks = getattr(app.state, "_bg_tasks", [])
+    for t in bg_tasks:
+        t.cancel()
+    if bg_tasks:
+        await asyncio.gather(*bg_tasks, return_exceptions=True)
     
     # Cleanup browser pool
     if browser_pool and hasattr(browser_pool, 'playwright') and browser_pool.playwright:
@@ -188,6 +297,10 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+# Internal routers (worker + admin)
+app.include_router(internal_worker_router)
+app.include_router(internal_admin_router)
 
 
 def get_orchestrator() -> JobOrchestrator:
@@ -320,11 +433,11 @@ async def get_job_status(
     try:
         status_info = await orch.get_job_status(job_id)
     except JobNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    if status_info is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
+
     return status_info
 
 

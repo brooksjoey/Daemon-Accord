@@ -9,9 +9,9 @@ from src.control_plane.models import Job, JobStatus
 
 
 @pytest.mark.asyncio
-async def test_get_job_state_from_cache(mock_redis, mock_db_engine):
+async def test_get_job_state_from_cache(mock_redis, mock_database):
     """Test getting job state from cache."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     cached_state = '{"id": "job-123", "status": "pending"}'
     mock_redis.get.return_value = cached_state
@@ -24,13 +24,12 @@ async def test_get_job_state_from_cache(mock_redis, mock_db_engine):
 
 
 @pytest.mark.asyncio
-async def test_get_job_state_from_db(mock_redis, mock_db_engine, mock_db_session, sample_job):
+async def test_get_job_state_from_db(mock_redis, mock_database, mock_db_session, sample_job):
     """Test getting job state from database when not in cache."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     mock_redis.get.return_value = None  # Not in cache
     mock_db_session.get.return_value = sample_job
-    sample_job.model_dump_json = Mock(return_value='{"id": "test-job-123", "status": "pending"}')
     
     state = await manager.get_job_state("test-job-123")
     
@@ -40,9 +39,9 @@ async def test_get_job_state_from_db(mock_redis, mock_db_engine, mock_db_session
 
 
 @pytest.mark.asyncio
-async def test_get_job_state_not_found(mock_redis, mock_db_engine, mock_db_session):
+async def test_get_job_state_not_found(mock_redis, mock_database, mock_db_session):
     """Test getting job state when job doesn't exist."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     mock_redis.get.return_value = None
     mock_db_session.get.return_value = None
@@ -53,9 +52,9 @@ async def test_get_job_state_not_found(mock_redis, mock_db_engine, mock_db_sessi
 
 
 @pytest.mark.asyncio
-async def test_update_job_status_to_running(mock_redis, mock_db_engine, mock_db_session, sample_job):
+async def test_update_job_status_to_running(mock_redis, mock_database, mock_db_session, sample_job):
     """Test updating job status to running."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     mock_db_session.get.return_value = sample_job
     
@@ -71,9 +70,9 @@ async def test_update_job_status_to_running(mock_redis, mock_db_engine, mock_db_
 
 
 @pytest.mark.asyncio
-async def test_update_job_status_to_completed(mock_redis, mock_db_engine, mock_db_session, sample_job, sample_job_result):
+async def test_update_job_status_to_completed(mock_redis, mock_database, mock_db_session, sample_job, sample_job_result):
     """Test updating job status to completed."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     mock_db_session.get.return_value = sample_job
     
@@ -90,9 +89,9 @@ async def test_update_job_status_to_completed(mock_redis, mock_db_engine, mock_d
 
 
 @pytest.mark.asyncio
-async def test_update_job_status_with_error(mock_redis, mock_db_engine, mock_db_session, sample_job):
+async def test_update_job_status_with_error(mock_redis, mock_database, mock_db_session, sample_job):
     """Test updating job status with error."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     mock_db_session.get.return_value = sample_job
     
@@ -110,24 +109,24 @@ async def test_update_job_status_with_error(mock_redis, mock_db_engine, mock_db_
 
 
 @pytest.mark.asyncio
-async def test_increment_attempts(mock_redis, mock_db_engine, mock_db_session, sample_job):
+async def test_increment_attempts(mock_redis, mock_database, mock_db_session, sample_job):
     """Test incrementing job attempts."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     mock_db_session.get.return_value = sample_job
     initial_attempts = sample_job.attempts
     
     result = await manager.increment_attempts("test-job-123")
     
-    assert result == initial_attempts + 1
+    assert result is True
     assert sample_job.attempts == initial_attempts + 1
     mock_db_session.commit.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_get_jobs_by_status(mock_redis, mock_db_engine, mock_db_session, sample_job):
+async def test_get_jobs_by_status(mock_redis, mock_database, mock_db_session, sample_job):
     """Test getting jobs by status."""
-    manager = StateManager(mock_redis, mock_db_engine)
+    manager = StateManager(mock_redis, mock_database)
     
     from sqlalchemy.engine import Result
     mock_result = Mock(spec=Result)

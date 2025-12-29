@@ -74,6 +74,30 @@ docker run -p 8080:8080 \
 - `GET /api/v1/jobs/{job_id}` - Get job status
 - `GET /api/v1/queue/stats` - Queue statistics
 
+## Worker ↔ Control Plane contract (Execution Engine workers)
+
+The deployed architecture expects the **Execution Engine worker** to pull work via the Control Plane (no inbound ports to the worker).
+
+- **Contract doc**: `src/contracts/worker_contract.md`
+- **Worker APIs**:
+  - `POST /internal/worker/claim`
+  - `POST /internal/worker/heartbeat`
+  - `POST /internal/worker/complete`
+  - `POST /internal/worker/fail`
+- **Admin / reconciliation**:
+  - `POST /internal/admin/queue/reconcile` (requeues stuck PEL messages when there is no active DB lease)
+
+### Tuning (env vars)
+
+```env
+WORKER_LEASE_TTL_SECONDS=60
+WORKER_HEARTBEAT_INTERVAL_SECONDS=20
+LEASE_REAPER_INTERVAL_SECONDS=15
+PEL_RECONCILE_INTERVAL_SECONDS=30
+PEL_IDLE_THRESHOLD_SECONDS=60
+JOBS_CONSUMER_GROUP=workers
+```
+
 ## Architecture
 
 See:

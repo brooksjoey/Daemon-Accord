@@ -17,3 +17,22 @@ This is the core IP. Replicating it in-house would demand roughly nine months of
 
 ## Status
 Proof-of-Concept / Architected. Code structure is complete and awaiting integration.
+
+## Execution Engine worker (Control Plane contract)
+
+`src/worker.py` runs a worker that:
+- Claims work via Control Plane (`/internal/worker/claim`)
+- Heartbeats DB leases (`/internal/worker/heartbeat`)
+- Completes/fails jobs (`/internal/worker/complete` / `/internal/worker/fail`)
+- ACKs Redis Streams **only when** Control Plane returns `ack=true`
+
+### Run locally
+
+```bash
+export REDIS_URL="redis://localhost:6379/0"
+export CONTROL_PLANE_URL="http://localhost:8080"
+export WORKER_ID="execution-worker-1"
+export JOBS_CONSUMER_GROUP="workers"
+
+python src/worker.py
+```

@@ -89,6 +89,7 @@ class PolicyEnforcer:
             "authorization_mode": authorization_mode.value,
             "timestamp": datetime.utcnow().isoformat(),
         }
+        rate_limit_applied = False
         
         # Get domain policy
         policy = await self._get_domain_policy(domain)
@@ -152,7 +153,6 @@ class PolicyEnforcer:
                 return False, PolicyAction.STRATEGY_RESTRICTED, reason, context
             
             # Check rate limits
-            rate_limit_applied = False
             if policy.rate_limit_per_minute:
                 if await self._check_rate_limit(domain, policy.rate_limit_per_minute, window_seconds=60):
                     rate_limit_applied = True

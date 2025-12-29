@@ -9,6 +9,7 @@ from datetime import datetime
 import redis.asyncio as redis
 from sqlmodel import select
 import structlog
+import json
 
 from src.exceptions import DatabaseError, RedisError
 from .models import Job, JobStatus
@@ -141,6 +142,8 @@ class StateManager:
                 
                 # Update status
                 job.status = status.value if isinstance(status, JobStatus) else status
+                if hasattr(job, "updated_at"):
+                    job.updated_at = datetime.utcnow()
                 
                 # Update optional fields
                 if error is not None:
@@ -159,6 +162,13 @@ class StateManager:
                 
                 if "attempts" in kwargs:
                     job.attempts = kwargs["attempts"]
+
+                # Optional result payload (stored as JSON-encoded string in current schema)
+                if "result" in kwargs and kwargs["result"] is not None:
+                    try:
+                        job.result = json.dumps(kwargs["result"])
+                    except Exception:
+                        job.result = str(kwargs["result"])
                 
                 session.add(job)
                 await session.commit()
@@ -200,6 +210,8 @@ class StateManager:
                     return False
                 
                 job.attempts += 1
+                if hasattr(job, "updated_at"):
+                    job.updated_at = datetime.utcnow()
                 session.add(job)
                 await session.commit()
                 

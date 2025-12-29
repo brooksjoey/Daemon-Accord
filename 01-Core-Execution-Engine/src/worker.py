@@ -11,8 +11,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 import redis.asyncio as redis
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+import httpx
 
 # Add src to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -25,36 +24,115 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class ControlPlaneClient:
+    """
+    Minimal client for the Worker ↔ Control Plane contract (v1).
+
+    Worker never ACKs transport until Control Plane returns ack=true
+    after committing DB state.
+    """
+
+    def __init__(self, base_url: str, worker_id: str, timeout_s: float = 30.0):
+        self.base_url = base_url.rstrip("/")
+        self.worker_id = worker_id
+        self._client = httpx.AsyncClient(timeout=timeout_s)
+
+    async def claim(self, streams: list[str], max_wait_ms: int = 5000) -> Optional[Dict[str, Any]]:
+        r = await self._client.post(
+            f"{self.base_url}/internal/worker/claim",
+            json={"worker_id": self.worker_id, "streams": streams, "max_wait_ms": max_wait_ms},
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data if data.get("claimed") else None
+
+    async def heartbeat(self, job_id: str, lease_token: str) -> None:
+        r = await self._client.post(
+            f"{self.base_url}/internal/worker/heartbeat",
+            json={"worker_id": self.worker_id, "job_id": job_id, "lease_token": lease_token},
+        )
+        r.raise_for_status()
+
+    async def complete(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        lease_token: str,
+        stream: str,
+        message_id: str,
+        result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        r = await self._client.post(
+            f"{self.base_url}/internal/worker/complete",
+            json={
+                "worker_id": self.worker_id,
+                "job_id": job_id,
+                "attempt_id": attempt_id,
+                "lease_token": lease_token,
+                "stream": stream,
+                "message_id": message_id,
+                "result": result,
+            },
+        )
+        r.raise_for_status()
+        return r.json()
+
+    async def fail(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        lease_token: str,
+        stream: str,
+        message_id: str,
+        error: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        r = await self._client.post(
+            f"{self.base_url}/internal/worker/fail",
+            json={
+                "worker_id": self.worker_id,
+                "job_id": job_id,
+                "attempt_id": attempt_id,
+                "lease_token": lease_token,
+                "stream": stream,
+                "message_id": message_id,
+                "error": error,
+            },
+        )
+        r.raise_for_status()
+        return r.json()
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
+
 class ExecutionWorker:
     """Worker that consumes jobs from Redis and executes them."""
     
     def __init__(
         self,
         redis_url: str,
-        database_url: str,
         max_browsers: int = 20,
-        consumer_name: str = "execution-worker"
+        worker_id: str = "execution-worker",
+        control_plane_url: str = "http://localhost:8080",
     ):
         self.redis_url = redis_url
-        self.database_url = database_url
         self.max_browsers = max_browsers
-        self.consumer_name = consumer_name
+        self.worker_id = worker_id
+        self.control_plane_url = control_plane_url
+        self.consumer_group = os.getenv("JOBS_CONSUMER_GROUP", "workers")
         self.redis_client = None
-        self.db_engine = None
         self.browser_pool = None
         self.strategy_executor = None
         self.running = False
+        self.cp: ControlPlaneClient | None = None
     
     async def initialize(self):
         """Initialize connections and resources."""
         # Redis
         self.redis_client = await redis.from_url(self.redis_url, decode_responses=True)
-        
-        # Database
-        self.db_engine = create_async_engine(self.database_url)
-        async_session = sessionmaker(
-            self.db_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        self.cp = ControlPlaneClient(base_url=self.control_plane_url, worker_id=self.worker_id)
         
         # Browser pool
         self.browser_pool = BrowserPool(max_instances=self.max_browsers)
@@ -117,69 +195,92 @@ class ExecutionWorker:
                 'execution_time': 0.0
             }
     
-    async def consume_jobs(self, stream_name: str = "jobs:stream:normal", timeout: int = 1000):
-        """Consume jobs from Redis Stream."""
-        group_name = "execution-workers"
-        
+    async def _run_once(self) -> None:
+        """
+        One claim → execute → complete/fail cycle.
+
+        The worker does NOT read/ACK streams directly until Control Plane
+        returns ack=true (after DB commit).
+        """
+        if not self.cp or not self.redis_client:
+            return
+
+        streams = ["jobs:stream:emergency", "jobs:stream:high", "jobs:stream:normal", "jobs:stream:low"]
+        claim = await self.cp.claim(streams=streams, max_wait_ms=5000)
+        if not claim:
+            return
+
+        job_id = claim["job_id"]
+        attempt_id = claim["attempt_id"]
+        lease_token = claim["lease_token"]
+        stream = claim["stream"]
+        message_id = claim["message_id"]
+        job_snapshot = claim.get("payload") or {}
+
+        job_data = {
+            "id": job_snapshot.get("id", job_id),
+            "domain": job_snapshot.get("domain", ""),
+            "url": job_snapshot.get("url", ""),
+            "type": job_snapshot.get("type", "navigate_extract"),
+            "strategy": job_snapshot.get("strategy", "vanilla"),
+            "payload": job_snapshot.get("payload", {}),
+            "priority": job_snapshot.get("priority", 2),
+            "timeout_seconds": job_snapshot.get("timeout_seconds", 300),
+        }
+
+        hb_interval = int(claim.get("heartbeat_interval_seconds") or 20)
+        hb_sleep = max(1, hb_interval)
+        hb_running = True
+
+        async def heartbeat_loop():
+            nonlocal hb_running
+            while hb_running:
+                try:
+                    await asyncio.sleep(hb_sleep)
+                    if not hb_running:
+                        break
+                    await self.cp.heartbeat(job_id=job_id, lease_token=lease_token)
+                except Exception as e:
+                    logger.warning(f"Heartbeat failed for {job_id}: {e}")
+
+        hb_task = asyncio.create_task(heartbeat_loop())
         try:
-            # Create consumer group if it doesn't exist
-            try:
-                await self.redis_client.xgroup_create(
-                    name=stream_name,
-                    groupname=group_name,
-                    id="0",
-                    mkstream=True
+            result = await self.process_job(job_data)
+            if result.get("success"):
+                resp = await self.cp.complete(
+                    job_id=job_id,
+                    attempt_id=attempt_id,
+                    lease_token=lease_token,
+                    stream=stream,
+                    message_id=message_id,
+                    result=result,
                 )
-            except redis.ResponseError as e:
-                if "BUSYGROUP" not in str(e):
-                    raise
-            
-            # Read from stream
-            messages = await self.redis_client.xreadgroup(
-                groupname=group_name,
-                consumername=self.consumer_name,
-                streams={stream_name: ">"},
-                count=1,
-                block=timeout
-            )
-            
-            if messages:
-                for stream, msgs in messages:
-                    for msg_id, data in msgs:
-                        # Parse job_data from message (Control Plane now includes it)
-                        job_data_str = data.get('job_data')
-                        if job_data_str:
-                            job_data = json.loads(job_data_str)
-                        else:
-                            # Fallback: construct from message fields (backward compatibility)
-                            logger.warning(f"Message {msg_id} missing job_data, using fallback")
-                            job_data = {
-                                'id': data.get('job_id', msg_id),
-                                'domain': data.get('domain', ''),
-                                'url': '',  # Not available in old format
-                                'type': 'navigate_extract',  # Default
-                                'strategy': 'vanilla',  # Default
-                                'payload': {},
-                                'priority': int(data.get('priority', 2))
-                            }
-                        
-                        # Ensure job_id is set
-                        if 'id' not in job_data:
-                            job_data['id'] = data.get('job_id', msg_id)
-                        
-                        # Process job
-                        result = await self.process_job(job_data)
-                        
-                        # Acknowledge message
-                        await self.redis_client.xack(stream_name, group_name, msg_id)
-                        
-                        # Update Control Plane job status via database
-                        await self._update_job_status(job_data['id'], result)
-                        
-                        logger.info(f"Job {job_data['id']} completed: {result['success']}")
-            
-        except Exception as e:
-            logger.error(f"Error consuming jobs: {e}", exc_info=True)
+            else:
+                resp = await self.cp.fail(
+                    job_id=job_id,
+                    attempt_id=attempt_id,
+                    lease_token=lease_token,
+                    stream=stream,
+                    message_id=message_id,
+                    error={
+                        "code": "EXECUTION_FAILED",
+                        "message": str(result.get("error") or "Execution failed"),
+                        "stack": None,
+                        "retryable": True,
+                    },
+                )
+
+            if resp.get("ack"):
+                await self.redis_client.xack(stream, self.consumer_group, message_id)
+            else:
+                logger.warning(f"Control Plane did not authorize ACK for {job_id}: {resp}")
+        finally:
+            hb_running = False
+            hb_task.cancel()
+            try:
+                await hb_task
+            except Exception:
+                pass
     
     async def run(self):
         """Run the worker loop."""
@@ -188,58 +289,11 @@ class ExecutionWorker:
         
         while self.running:
             try:
-                # Try all priority streams
-                for stream in ["jobs:stream:emergency", "jobs:stream:high", "jobs:stream:normal", "jobs:stream:low"]:
-                    await self.consume_jobs(stream, timeout=1000)
+                await self._run_once()
+                await asyncio.sleep(0.1)
             except Exception as e:
                 logger.error(f"Worker error: {e}", exc_info=True)
                 await asyncio.sleep(5)
-    
-    async def _update_job_status(self, job_id: str, result: Dict[str, Any]):
-        """Update job status in Control Plane database."""
-        try:
-            from sqlalchemy import text
-            from datetime import datetime
-            
-            async_session = sessionmaker(
-                self.db_engine, class_=AsyncSession, expire_on_commit=False
-            )
-            
-            async with async_session() as session:
-                # Update job status based on result
-                # Database enum values are UPPERCASE: PENDING, QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
-                if result.get('success'):
-                    status = 'COMPLETED'
-                    error = None
-                else:
-                    status = 'FAILED'
-                    error = str(result.get('error', 'Execution failed'))
-                
-                # Update job in database
-                # PostgreSQL enum: just pass the string value, it should match the enum
-                await session.execute(
-                    text("""
-                        UPDATE jobs 
-                        SET status = :status,
-                            result = :result,
-                            artifacts = :artifacts,
-                            error = :error,
-                            completed_at = :completed_at
-                        WHERE id = :job_id
-                    """),
-                    {
-                        "job_id": job_id,
-                        "status": status,
-                        "result": json.dumps(result.get('data', {})),
-                        "artifacts": json.dumps(result.get('artifacts', {})),
-                        "error": error,
-                        "completed_at": datetime.utcnow()
-                    }
-                )
-                await session.commit()
-                logger.info(f"Updated job {job_id} status to {status}")
-        except Exception as e:
-            logger.error(f"Failed to update job {job_id} status: {e}", exc_info=True)
     
     async def shutdown(self):
         """Shutdown the worker."""
@@ -248,21 +302,23 @@ class ExecutionWorker:
             await self.browser_pool.cleanup()
         if self.redis_client:
             await self.redis_client.aclose()
-        if self.db_engine:
-            await self.db_engine.dispose()
+        if self.cp:
+            await self.cp.aclose()
         logger.info("Execution worker shut down")
 
 
 async def main():
     """Main entry point."""
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    database_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/daemon_accord")
     max_browsers = int(os.getenv("MAX_BROWSERS", "20"))
+    control_plane_url = os.getenv("CONTROL_PLANE_URL", "http://localhost:8080")
+    worker_id = os.getenv("WORKER_ID", "execution-worker")
     
     worker = ExecutionWorker(
         redis_url=redis_url,
-        database_url=database_url,
-        max_browsers=max_browsers
+        max_browsers=max_browsers,
+        worker_id=worker_id,
+        control_plane_url=control_plane_url,
     )
     
     try:

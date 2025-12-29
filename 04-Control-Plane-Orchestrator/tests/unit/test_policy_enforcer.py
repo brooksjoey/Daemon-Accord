@@ -18,8 +18,10 @@ from src.compliance.policy_enforcer import PolicyEnforcer
 def mock_db_session_factory():
     """Mock database session factory."""
     session = AsyncMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=None)
     session.execute = AsyncMock()
-    session.add = AsyncMock()
+    session.add = MagicMock()
     session.commit = AsyncMock()
     
     factory = MagicMock(return_value=session)

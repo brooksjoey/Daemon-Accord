@@ -44,6 +44,7 @@ class Job(SQLModel, table=True):
     artifacts: Optional[str] = Field(default=None, description="JSON-encoded artifact references")
     error: Optional[str] = Field(default=None, description="Error message if failed")
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True, description="Last update timestamp (UTC)")
     started_at: Optional[datetime] = Field(default=None)
     completed_at: Optional[datetime] = Field(default=None)
     

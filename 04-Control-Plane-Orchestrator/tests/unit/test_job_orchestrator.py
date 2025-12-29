@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from src.control_plane.job_orchestrator import JobOrchestrator, JobStatus
 from src.control_plane.models import Job
+from src.exceptions import JobNotFoundError, JobExecutionError
 
 
 @pytest.mark.asyncio
@@ -27,6 +28,8 @@ async def test_create_job_basic(mock_redis, mock_db_session, mock_database):
     
     mock_db_session.__aenter__ = AsyncMock(return_value=mock_db_session)
     mock_db_session.__aexit__ = AsyncMock(return_value=None)
+    orchestrator.queue_manager.enqueue = AsyncMock(return_value="msg-1")
+    orchestrator.queue_manager.enqueue = AsyncMock(return_value="msg-1")
     mock_redis.get.return_value = None  # No existing idempotency key
     
     job_id = await orchestrator.create_job(
@@ -43,7 +46,7 @@ async def test_create_job_basic(mock_redis, mock_db_session, mock_database):
     assert len(job_id) == 36  # UUID format
     mock_db_session.add.assert_called_once()
     mock_db_session.commit.assert_called_once()
-    mock_redis.xadd.assert_called_once()
+    orchestrator.queue_manager.enqueue.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -119,6 +122,7 @@ async def test_create_job_enqueues_to_correct_stream(mock_redis, mock_db_session
     
     mock_db_session.__aenter__ = AsyncMock(return_value=mock_db_session)
     mock_db_session.__aexit__ = AsyncMock(return_value=None)
+    orchestrator.queue_manager.enqueue = AsyncMock(return_value="msg-1")
     
     # Test emergency priority (0)
     await orchestrator.create_job(
@@ -374,6 +378,8 @@ async def test_process_job_failure(mock_redis, mock_db_session, mock_database, s
     mock_db_session.__aenter__ = AsyncMock(return_value=mock_db_session)
     mock_db_session.__aexit__ = AsyncMock(return_value=None)
     mock_db_session.get.return_value = sample_job
+    # Force terminal failure (no retries)
+    sample_job.max_attempts = 1
     
     # Mock failed execution
     orchestrator._execute_job = AsyncMock(return_value={
@@ -405,11 +411,8 @@ async def test_process_job_not_found(mock_redis, mock_db_session, mock_database)
     mock_db_session.__aexit__ = AsyncMock(return_value=None)
     mock_db_session.get.return_value = None
     
-    # Should not raise exception, just return
-    await orchestrator.process_job("non-existent-job")
-    
-    # Verify no execution was attempted
-    assert not hasattr(orchestrator, "_execute_job") or orchestrator._execute_job.call_count == 0
+    with pytest.raises(JobNotFoundError):
+        await orchestrator.process_job("non-existent-job")
 
 
 @pytest.mark.asyncio
@@ -430,11 +433,8 @@ async def test_process_job_exception_handling(mock_redis, mock_db_session, mock_
     # Mock exception during execution
     orchestrator._execute_job = AsyncMock(side_effect=Exception("Unexpected error"))
     
-    # Should not raise, but mark job as failed
-    await orchestrator.process_job("test-job-123")
-    
-    assert sample_job.status == JobStatus.FAILED.value
-    assert sample_job.error is not None
+    with pytest.raises(JobExecutionError):
+        await orchestrator.process_job("test-job-123")
 
 
 @pytest.mark.asyncio

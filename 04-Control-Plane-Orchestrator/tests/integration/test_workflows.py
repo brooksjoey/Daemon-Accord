@@ -5,8 +5,14 @@ Tests workflow execution against real API endpoints.
 """
 import pytest
 import httpx
+import os
 from src.workflows.workflow_registry import get_workflow_registry
 
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("RUN_HTTP_INTEGRATION_TESTS", "false").lower() != "true",
+    reason="Requires a running Control Plane API on localhost:8082 (set RUN_HTTP_INTEGRATION_TESTS=true to enable).",
+)
 
 @pytest.mark.asyncio
 @pytest.mark.integration

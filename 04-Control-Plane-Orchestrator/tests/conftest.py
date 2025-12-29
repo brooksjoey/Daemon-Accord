@@ -39,6 +39,17 @@ def reset_sqlmodel_metadata():
     SQLModel.metadata.clear()
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _disable_heavy_startup_for_tests():
+    """
+    Ensure importing/running FastAPI app in tests does not require live
+    Postgres/Redis/Playwright.
+    """
+    os.environ.setdefault("SKIP_INIT_MODELS", "true")
+    os.environ.setdefault("DISABLE_CONTROL_PLANE_STARTUP", "true")
+    yield
+
+
 @pytest.fixture
 def settings():
     """Test settings with in-memory/in-memory configurations."""
@@ -65,6 +76,9 @@ async def mock_redis():
     redis_client.xack = AsyncMock()
     redis_client.xlen = AsyncMock(return_value=0)
     redis_client.xpending = AsyncMock(return_value=(0, None, None, []))
+    redis_client.xpending_range = AsyncMock(return_value=[])
+    redis_client.xclaim = AsyncMock(return_value=[])
+    redis_client.execute_command = AsyncMock(return_value=[])
     redis_client.zadd = AsyncMock()
     redis_client.zcard = AsyncMock(return_value=0)
     redis_client.xrange = AsyncMock(return_value=[])
@@ -88,9 +102,20 @@ async def mock_db_session():
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
     session.get = AsyncMock(return_value=None)
-    session.add = AsyncMock()
+    # SQLAlchemy AsyncSession.add() is synchronous
+    session.add = Mock()
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
+    # SQLAlchemy result objects have synchronous .all()/.scalars()
+    scalars_result = Mock()
+    scalars_result.all = Mock(return_value=[])
+    scalars_result.first = Mock(return_value=None)
+
+    execute_result = Mock()
+    execute_result.all = Mock(return_value=[])
+    execute_result.scalars = Mock(return_value=scalars_result)
+
+    session.execute = AsyncMock(return_value=execute_result)
     session.exec = AsyncMock(return_value=Mock(all=Mock(return_value=[])))
     return session
 

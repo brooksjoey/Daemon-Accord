@@ -37,6 +37,33 @@ class ControlPlaneSettings(BaseSettings):
         validation_alias="WORKER_COUNT",
         description="Number of worker processes"
     )
+
+    # Worker ↔ Control Plane contract (internal)
+    worker_lease_ttl_seconds: int = Field(
+        default=60,
+        validation_alias="WORKER_LEASE_TTL_SECONDS",
+        description="DB lease TTL for claimed jobs (seconds)"
+    )
+    worker_heartbeat_interval_seconds: int = Field(
+        default=20,
+        validation_alias="WORKER_HEARTBEAT_INTERVAL_SECONDS",
+        description="Recommended worker heartbeat interval (seconds)"
+    )
+    lease_reaper_interval_seconds: int = Field(
+        default=15,
+        validation_alias="LEASE_REAPER_INTERVAL_SECONDS",
+        description="How often the control plane reaps expired leases (seconds)"
+    )
+    pel_reconcile_interval_seconds: int = Field(
+        default=30,
+        validation_alias="PEL_RECONCILE_INTERVAL_SECONDS",
+        description="How often to reconcile Redis Streams PEL (seconds)"
+    )
+    pel_idle_threshold_seconds: int = Field(
+        default=60,
+        validation_alias="PEL_IDLE_THRESHOLD_SECONDS",
+        description="Minimum idle time before a pending message can be reclaimed (seconds)"
+    )
     
     # Memory Service integration
     memory_service_url: Optional[str] = Field(
@@ -68,4 +95,5 @@ class ControlPlaneSettings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        populate_by_name = True
 

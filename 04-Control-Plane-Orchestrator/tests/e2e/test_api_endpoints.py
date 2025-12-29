@@ -4,11 +4,6 @@ End-to-end tests for API endpoints.
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, Mock, patch
-import sys
-import os
-
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 
 @pytest.fixture
@@ -32,10 +27,10 @@ def mock_orchestrator():
 def client(mock_orchestrator):
     """Test client with mocked dependencies."""
     # Patch the orchestrator dependency
-    with patch("main.orchestrator", mock_orchestrator):
-        with patch("main.get_orchestrator", return_value=mock_orchestrator):
-            from main import app
-            return TestClient(app)
+    with patch("src.main.orchestrator", mock_orchestrator):
+        from src.main import app
+        with TestClient(app) as c:
+            yield c
 
 
 def test_health_endpoint(client):

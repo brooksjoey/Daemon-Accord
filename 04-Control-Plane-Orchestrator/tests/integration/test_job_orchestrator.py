@@ -142,6 +142,7 @@ async def test_get_queue_stats(mock_redis, mock_db_session, mock_database):
     stats = await orchestrator.get_queue_stats()
     
     assert stats is not None
-    assert "normal" in stats
-    assert stats["normal"]["length"] == 5
+    assert "queue" in stats
+    assert "normal" in stats["queue"]
+    assert stats["queue"]["normal"]["length"] == 5
 

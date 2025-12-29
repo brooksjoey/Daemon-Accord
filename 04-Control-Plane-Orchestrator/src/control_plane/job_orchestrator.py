@@ -562,6 +562,10 @@ class JobOrchestrator:
             return {
                 "job_id": job.id,
                 "status": job.status,
+                "domain": job.domain,
+                "job_type": job.job_type,
+                "strategy": job.strategy,
+                "priority": job.priority,
                 "progress": 100.0 if job.completed_at else 0.0,
                 "result": result,
                 "error": job.error,
@@ -682,24 +686,29 @@ class JobOrchestrator:
     async def shutdown(self):
         """Shutdown orchestrator."""
         logger.info("Shutting down orchestrator...")
+        import inspect
         
         # Signal workers to stop
         self._shutdown_event.set()
         
         # Cancel all workers
         for worker in self._workers:
-            worker.cancel()
+            if hasattr(worker, "cancel"):
+                worker.cancel()
         
         # Wait for workers to complete
-        if self._workers:
-            await asyncio.gather(*self._workers, return_exceptions=True)
+        awaitables = [w for w in self._workers if asyncio.isfuture(w) or inspect.isawaitable(w)]
+        if awaitables:
+            await asyncio.gather(*awaitables, return_exceptions=True)
         
         # Cancel running jobs
         for job_id, task in list(self._running_jobs.items()):
-            task.cancel()
+            if hasattr(task, "cancel"):
+                task.cancel()
         
         # Wait for tasks to complete
-        if self._running_jobs:
-            await asyncio.gather(*self._running_jobs.values(), return_exceptions=True)
+        running_awaitables = [t for t in self._running_jobs.values() if asyncio.isfuture(t) or inspect.isawaitable(t)]
+        if running_awaitables:
+            await asyncio.gather(*running_awaitables, return_exceptions=True)
         
         logger.info("Orchestrator shutdown complete")

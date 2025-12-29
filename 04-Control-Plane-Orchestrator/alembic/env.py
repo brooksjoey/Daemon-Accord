@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 # Import SQLModel and models
 from sqlmodel import SQLModel
 from control_plane.models import Job, JobExecution
+from db.models_worker import JobAttempt, JobLease  # noqa: F401  (import populates SQLModel metadata)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

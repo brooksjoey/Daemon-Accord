@@ -5,14 +5,177 @@ import time
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import redis.asyncio as redis
+import os
 
 class QueueManager:
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
         self.stream_key = "jobs:stream"
-        self.consumer_group = "workers"
+        self.consumer_group = os.getenv("JOBS_CONSUMER_GROUP", "workers")
         self.consumer_name = None
         self.dead_letter_key = "jobs:dlq"
+
+    # -------------------------
+    # Streams / consumer groups
+    # -------------------------
+
+    async def ensure_consumer_groups(self, streams: List[str]) -> None:
+        """Ensure consumer group exists for each stream."""
+        for stream in streams:
+            try:
+                await self.redis.xgroup_create(
+                    name=stream,
+                    groupname=self.consumer_group,
+                    id="0",
+                    mkstream=True,
+                )
+            except Exception:
+                # Group might already exist, which is fine
+                continue
+
+    async def read_one_from_any_stream(
+        self,
+        streams: List[str],
+        max_wait_ms: int,
+        consumer: str,
+    ) -> Optional[tuple[str, str, Dict[str, Any]]]:
+        """
+        Read exactly one message from the first stream that has one (priority order).
+
+        IMPORTANT: Does NOT ACK. Caller must ACK after durable DB state change.
+        Returns: (stream, message_id, fields)
+        """
+        await self.ensure_consumer_groups(streams)
+        for stream in streams:
+            resp = await self.redis.xreadgroup(
+                groupname=self.consumer_group,
+                consumername=consumer,
+                streams={stream: ">"},
+                count=1,
+                block=max_wait_ms,
+            )
+            if resp:
+                stream_name, entries = resp[0]
+                message_id, fields = entries[0]
+                return str(stream_name), str(message_id), dict(fields)
+        return None
+
+    async def ack(self, stream: str, message_id: str) -> None:
+        """ACK a message in the configured consumer group."""
+        await self.redis.xack(stream, self.consumer_group, message_id)
+
+    async def dlq_add(self, fields: Dict[str, Any]) -> str:
+        """Add an entry to the DLQ stream."""
+        return await self.redis.xadd(self.dead_letter_key, fields, maxlen=10000)
+
+    async def pel_reconcile_requeue(
+        self,
+        *,
+        stream: str,
+        idle_ms: int,
+        check_active_lease,
+        batch_size: int = 100,
+        requeue_maxlen: int = 10000,
+        requeue_fields_extra: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """
+        Reconcile pending entries list (PEL) for a stream.
+
+        Rule:
+          - If message idle > idle_ms AND there is NO active DB lease for that job_id,
+            reclaim and requeue (XADD new message) then XACK old message.
+          - If active lease exists, do not touch the message (leave it pending).
+
+        Uses XPENDING + XCLAIM for portability; prefers correctness over speed.
+        """
+        requeued = 0
+        pending: list[dict[str, Any]] = []
+        # Prefer redis-py helper if available; otherwise use raw XPENDING command.
+        try:
+            if hasattr(self.redis, "xpending_range"):
+                pending = await self.redis.xpending_range(
+                    stream,
+                    self.consumer_group,
+                    min="-",
+                    max="+",
+                    count=batch_size,
+                    idle=idle_ms,
+                )
+            else:
+                # XPENDING <key> <group> IDLE <ms> - + <count>
+                raw = await self.redis.execute_command(
+                    "XPENDING",
+                    stream,
+                    self.consumer_group,
+                    "IDLE",
+                    idle_ms,
+                    "-",
+                    "+",
+                    batch_size,
+                )
+                # raw entries: [ [id, consumer, idle_ms, deliveries], ... ]
+                pending = [
+                    {
+                        "message_id": r[0],
+                        "consumer": r[1],
+                        "time_since_delivered": r[2],
+                        "times_delivered": r[3],
+                    }
+                    for r in (raw or [])
+                ]
+        except Exception:
+            return 0
+
+        if not pending:
+            return 0
+
+        for p in pending:
+            msg_id = p.get("message_id") if isinstance(p, dict) else None
+            if not msg_id:
+                continue
+
+            # Load message fields
+            msg = await self.redis.xrange(stream, min=msg_id, max=msg_id, count=1)
+            if not msg:
+                # Message no longer exists; ack defensively.
+                await self.ack(stream, msg_id)
+                continue
+            _, fields = msg[0]
+            fields = dict(fields)
+            job_id = fields.get("job_id")
+            if not job_id:
+                # Poison message: ack and drop.
+                await self.ack(stream, msg_id)
+                continue
+
+            has_lease = await check_active_lease(str(job_id))
+            if has_lease:
+                # Do not reclaim; leave pending under original consumer.
+                continue
+
+            # Claim to a dedicated reconciler consumer (so we can ACK it).
+            try:
+                await self.redis.xclaim(
+                    stream,
+                    self.consumer_group,
+                    consumername="reconciler",
+                    min_idle_time=idle_ms,
+                    message_ids=[msg_id],
+                )
+            except Exception:
+                continue
+
+            # Requeue by adding a fresh message, then ACK old.
+            extra = requeue_fields_extra or {}
+            await self.redis.xadd(
+                stream,
+                {**fields, **extra, "requeued_from_pel": str(msg_id)},
+                maxlen=requeue_maxlen,
+            )
+            await self.ack(stream, msg_id)
+            requeued += 1
+
+        return requeued
         
     async def enqueue(self, job_id: str, priority: int, domain: str, 
                      job_data: Optional[Dict[str, Any]] = None,
@@ -93,7 +256,14 @@ class QueueManager:
                     for message_id, message_data in message_list:
                         # Acknowledge message
                         await self.redis.xack(stream_name, self.consumer_group, message_id)
-                        return message_data.get("job_id")
+                        job_id = None
+                        if isinstance(message_data, dict):
+                            job_id = message_data.get("job_id")
+                            if job_id is None:
+                                job_id = message_data.get(b"job_id")
+                        if isinstance(job_id, bytes):
+                            job_id = job_id.decode("utf-8")
+                        return job_id
         
         return None
     
@@ -179,7 +349,14 @@ class QueueManager:
             try:
                 messages = await self.redis.xrange(stream, count=1000)
                 for msg_id, msg_data in messages:
-                    if msg_data.get("job_id") == job_id:
+                    found = None
+                    if isinstance(msg_data, dict):
+                        found = msg_data.get("job_id")
+                        if found is None:
+                            found = msg_data.get(b"job_id")
+                    if isinstance(found, bytes):
+                        found = found.decode("utf-8")
+                    if found == job_id:
                         await self.redis.xdel(stream, msg_id)
                         return True
             except Exception:

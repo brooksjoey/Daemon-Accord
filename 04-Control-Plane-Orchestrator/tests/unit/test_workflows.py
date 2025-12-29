@@ -82,7 +82,7 @@ def test_workflow_registry_register_custom():
 @pytest.mark.asyncio
 async def test_workflow_executor_initialization(mock_redis, mock_db_session, mock_database):
     """Test workflow executor initialization."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = JobOrchestrator(
         redis_client=mock_redis,
@@ -101,7 +101,7 @@ async def test_workflow_executor_initialization(mock_redis, mock_db_session, moc
 @pytest.mark.asyncio
 async def test_workflow_executor_execute_page_change_detection(mock_redis, mock_db_session, mock_database):
     """Test executing page change detection workflow."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = JobOrchestrator(
         redis_client=mock_redis,
@@ -137,7 +137,7 @@ async def test_workflow_executor_execute_page_change_detection(mock_redis, mock_
 @pytest.mark.asyncio
 async def test_workflow_executor_execute_invalid_workflow(mock_redis, mock_db_session, mock_database):
     """Test executing invalid workflow raises error."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = JobOrchestrator(
         redis_client=mock_redis,
@@ -159,7 +159,7 @@ async def test_workflow_executor_execute_invalid_workflow(mock_redis, mock_db_se
 @pytest.mark.asyncio
 async def test_workflow_executor_validate_input_missing_required():
     """Test input validation catches missing required fields."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = Mock()
     executor = WorkflowExecutor(orchestrator)
@@ -173,7 +173,7 @@ async def test_workflow_executor_validate_input_missing_required():
 @pytest.mark.asyncio
 async def test_workflow_executor_convert_to_job_payload_page_change():
     """Test converting page change detection input to job payload."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = Mock()
     executor = WorkflowExecutor(orchestrator)
@@ -198,7 +198,7 @@ async def test_workflow_executor_convert_to_job_payload_page_change():
 @pytest.mark.asyncio
 async def test_workflow_executor_convert_to_job_payload_job_monitor():
     """Test converting job posting monitor input to job payload."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = Mock()
     executor = WorkflowExecutor(orchestrator)
@@ -219,7 +219,7 @@ async def test_workflow_executor_convert_to_job_payload_job_monitor():
 @pytest.mark.asyncio
 async def test_workflow_executor_process_page_change_detection():
     """Test processing page change detection result."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = Mock()
     executor = WorkflowExecutor(orchestrator)
@@ -241,7 +241,7 @@ async def test_workflow_executor_process_page_change_detection():
 @pytest.mark.asyncio
 async def test_workflow_executor_process_uptime_smoke_check():
     """Test processing uptime smoke check result."""
-    from control_plane.job_orchestrator import JobOrchestrator
+    from src.control_plane.job_orchestrator import JobOrchestrator
     
     orchestrator = Mock()
     executor = WorkflowExecutor(orchestrator)
@@ -273,7 +273,7 @@ async def test_workflow_executor_send_webhook():
     executor = WorkflowExecutor(orchestrator)
     
     # Mock httpx
-    with patch("workflows.workflow_executor.httpx_module.AsyncClient") as mock_client_class:
+    with patch("src.workflows.workflow_executor.httpx_module.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_response = AsyncMock()
         mock_response.raise_for_status = AsyncMock()
@@ -294,7 +294,7 @@ async def test_workflow_executor_send_webhook_failure():
     executor = WorkflowExecutor(orchestrator)
     
     # Mock httpx to raise exception
-    with patch("workflows.workflow_executor.httpx_module.AsyncClient") as mock_client_class:
+    with patch("src.workflows.workflow_executor.httpx_module.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(side_effect=Exception("Network error"))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)

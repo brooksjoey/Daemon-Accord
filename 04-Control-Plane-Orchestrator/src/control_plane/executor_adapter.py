@@ -61,12 +61,14 @@ class ExecutorAdapter:
             db_session: Database session (optional)
             browser_pool: Browser pool instance (optional)
         """
+        # Keep both names for compatibility with older tests/callers.
         self.redis = redis_client
+        self.redis_client = redis_client
         self.db_session = db_session
         self.browser_pool = browser_pool
         self._executor_cache: Dict[str, Any] = {}  # Cache executors by strategy
     
-    def _get_executor(self, strategy: str):
+    def _get_executor(self, strategy: str | object):
         """
         Get or create executor for the given strategy.
         
@@ -75,6 +77,10 @@ class ExecutorAdapter:
         - 'stealth': Stealth execution with evasion
         - 'assault': Maximum evasion
         """
+        # Compatibility: some callers/tests pass a Job-like object.
+        if not isinstance(strategy, str):
+            strategy = getattr(strategy, "strategy", "vanilla")
+
         if strategy in self._executor_cache:
             return self._executor_cache[strategy]
         
@@ -117,29 +123,31 @@ class ExecutorAdapter:
             return executor
             
         except ImportError as e:
-            if not EXECUTION_ENGINE_AVAILABLE:
-                # In containerized mode, Execution Engine worker handles execution via Redis
-                logger.warning(
-                    "execution_engine_not_available",
-                    message="Execution Engine code not available. "
-                            "In containerized deployments, Execution Engine worker consumes from Redis Streams."
-                )
-                raise ConfigurationError(
-                    "Execution Engine code not available in container. "
-                    "Jobs are executed by the Execution Engine worker service via Redis Streams. "
-                    "Ensure execution-engine container is running.",
-                    config_key="EXECUTION_ENGINE_PATH"
-                ) from e
-            else:
-                logger.error(
-                    "failed_to_import_execution_engine",
-                    error=str(e),
-                    exc_info=True
-                )
-                raise ConfigurationError(
-                    f"Failed to import Execution Engine: {str(e)}",
-                    config_key="EXECUTION_ENGINE_IMPORTS"
-                ) from e
+            # Execution Engine dependencies (e.g., Playwright) may not be installed in
+            # the Control Plane environment (and are not required when the separate
+            # Execution Engine worker service is responsible for execution).
+            #
+            # Return a stub executor so callers can continue and handle the failure
+            # path deterministically.
+            logger.warning("execution_engine_import_failed", error=str(e))
+
+            class _UnavailableExecutor:
+                async def execute(self, *_args, **_kwargs):
+                    return type(
+                        "ExecutionResult",
+                        (),
+                        {
+                            "success": False,
+                            "data": {},
+                            "artifacts": {},
+                            "error": f"Execution Engine unavailable: {str(e)}",
+                            "execution_time": 0.0,
+                        },
+                    )()
+
+            executor = _UnavailableExecutor()
+            self._executor_cache[strategy] = executor
+            return executor
     
     def _convert_job_to_execution_format(
         self,
@@ -242,6 +250,23 @@ class ExecutorAdapter:
                 f"Job execution failed: {str(e)}",
                 job_id=job_id
             ) from e
+
+    async def execute(self, job: object) -> Dict[str, Any]:
+        """
+        Compatibility wrapper used by tests/callers that pass a Job-like object.
+
+        Returns a Control Plane formatted result dict and does not raise on
+        missing Execution Engine dependencies.
+        """
+        try:
+            # Some executors (and tests) expect a Job-like object, not a dict.
+            executor = self._get_executor(job)
+            result = await executor.execute(job)
+            return self._convert_result_to_control_plane_format(result)
+        except ImportError as e:
+            return {"success": False, "data": {}, "artifacts": {}, "error": str(e), "execution_time": 0.0}
+        except JobExecutionError as e:
+            return {"success": False, "data": {}, "artifacts": {}, "error": str(e), "execution_time": 0.0}
     
     def _convert_result_to_control_plane_format(self, result) -> Dict[str, Any]:
         """
@@ -258,24 +283,13 @@ class ExecutorAdapter:
         - error: str | None
         - execution_time: float
         """
-        # Handle JobResult (from StandardExecutor)
-        if hasattr(result, "status"):
-            # JobResult from core/executor.py
-            success = result.status.value in ["success", "completed"]
-            return {
-                "success": success,
-                "data": result.data or {},
-                "artifacts": result.artifacts or {},
-                "error": result.error,
-                "execution_time": result.execution_time or 0.0,
-            }
-        
-        # Handle ExecutionResult (from strategies)
-        elif hasattr(result, "success"):
+        # Prefer explicit boolean success attribute when available (works well for mocks too).
+        if hasattr(result, "success"):
             # ExecutionResult from strategies
             execution_time = 0.0
-            if hasattr(result, "timing") and result.timing:
-                execution_time = result.timing.get("total_ms", 0.0) / 1000.0  # Convert ms to seconds
+            timing = getattr(result, "timing", None)
+            if isinstance(timing, dict) and timing:
+                execution_time = float(timing.get("total_ms", 0.0)) / 1000.0  # Convert ms to seconds
             
             return {
                 "success": result.success,
@@ -283,6 +297,19 @@ class ExecutorAdapter:
                 "artifacts": getattr(result, "artifacts", {}),
                 "error": getattr(result, "error", None),
                 "execution_time": execution_time,
+            }
+
+        # Handle JobResult (from StandardExecutor)
+        elif hasattr(result, "status"):
+            # JobResult from core/executor.py
+            status_value = getattr(result.status, "value", None)
+            success = isinstance(status_value, str) and status_value in ["success", "completed"]
+            return {
+                "success": success,
+                "data": getattr(result, "data", None) or {},
+                "artifacts": getattr(result, "artifacts", None) or {},
+                "error": getattr(result, "error", None),
+                "execution_time": getattr(result, "execution_time", None) or 0.0,
             }
         
         # Fallback
