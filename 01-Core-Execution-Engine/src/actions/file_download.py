@@ -3,7 +3,7 @@ import os
 import hashlib
 from typing import Dict, Any, Optional
 from playwright.async_api import Page, Download
-from .base_action import BaseAction, ActionContext, ActionResult
+from .legacy_base_action import BaseAction, ActionContext, ActionResult
 import shutil
 
 class FileDownloadAction(BaseAction):

@@ -1,4 +1,4 @@
-from .base_action import BaseAction, ActionContext, ActionResult
+from .legacy_base_action import BaseAction, ActionContext, ActionResult
 from typing import Dict, Any, List
 import json
 from datetime import datetime

@@ -101,22 +101,9 @@ class StandardExecutor(BaseExecutor):
             )
 
     async def _execute_job(self, job_data: Dict[str, Any]) -> JobResult:
-        job_type = job_data.get('type', 'unknown')
-        
-        if job_type in ['price_extraction', 'data_scraping']:
-            from .actions.navigate_extract import execute_navigation
-            return await execute_navigation(job_data, self.pool)
-            
-        elif job_type in ['login', 'authentication']:
-            from .actions.authenticate import execute_authentication
-            return await execute_authentication(job_data, self.pool)
-            
-        elif job_type in ['form_submit', 'form_fill']:
-            from .actions.form_submit import execute_form_submit
-            return await execute_form_submit(job_data, self.pool)
-            
-        else:
-            raise ValueError(f"Unknown job type: {job_type}")
+        from core.action_adapter import execute_action_as_job_result
+
+        return await execute_action_as_job_result(job_data, browser_pool=self.pool)
 
     async def _check_rate_limit(self, domain: str, ip: str) -> bool:
         now = datetime.utcnow()

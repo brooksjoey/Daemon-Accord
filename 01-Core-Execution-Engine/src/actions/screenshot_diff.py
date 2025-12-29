@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, Tuple
 from playwright.async_api import Page
 from PIL import Image, ImageDraw, ImageChops, ImageFilter
 import numpy as np
-from .base_action import BaseAction, ActionContext, ActionResult
+from .legacy_base_action import BaseAction, ActionContext, ActionResult
 
 class ScreenshotDiffAction(BaseAction):
     action_type = "screenshot_diff"
