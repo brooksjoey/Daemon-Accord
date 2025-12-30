@@ -2,6 +2,8 @@ import { getRuns } from '@/lib/api/client';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 
+export const dynamic = 'force-dynamic';
+
 export default async function RunsPage() {
   const runs = await getRuns();
 

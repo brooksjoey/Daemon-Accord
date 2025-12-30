@@ -6,11 +6,14 @@ FastAPI application for job orchestration and management.
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 
 from .config import ControlPlaneSettings
@@ -178,6 +181,27 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+)
+
+# CORS (primarily for Control Center UI / browser clients)
+# Default allows local dev + docker-compose UI service.
+_default_cors_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://control-center:3000",
+]
+_cors_env = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+_cors_origins = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else _default_cors_origins
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -444,7 +468,78 @@ async def list_workflows(
         Dictionary of workflow names to workflow definitions
     """
     registry = get_workflow_registry()
-    return registry.get_summary()
+    # Keep existing response shape (dict) but enrich with fields the Control Center expects.
+    summary = registry.get_summary()
+    for wf in summary.values():
+        wf.setdefault("version", "1.0.0")
+        wf.setdefault("status", "active")
+        wf.setdefault("lastRun", None)
+    return summary
+
+
+@app.get("/api/v1/runs")
+async def list_runs():
+    """
+    Control Center-friendly "runs" view.
+
+    A "run" is derived from recent jobs in the database.
+    """
+    from datetime import datetime
+    from sqlmodel import select
+    from .control_plane.models import Job
+
+    async with db.session() as session:
+        statement = select(Job).order_by(Job.created_at.desc()).limit(50)
+        result = await session.execute(statement)
+        jobs = result.scalars().all()
+
+    runs = []
+    for job in jobs:
+        started_at = job.started_at or job.created_at
+        completed_at = job.completed_at
+        duration = None
+        if started_at and completed_at:
+            duration = max(0, int((completed_at - started_at).total_seconds()))
+
+        runs.append(
+            {
+                "runId": job.id,
+                "workflowName": job.job_type,
+                "status": job.status.value if hasattr(job.status, "value") else str(job.status),
+                "startedAt": started_at.isoformat() if started_at else None,
+                "duration": duration,
+            }
+        )
+
+    return runs
+
+
+@app.get("/api/v1/connectors")
+async def list_connectors():
+    """
+    Minimal connector inventory for the Control Center UI.
+
+    This is intentionally small and opinionated until real connector management ships.
+    """
+    from datetime import datetime
+
+    now = datetime.utcnow().isoformat()
+    return [
+        {
+            "id": "control-plane",
+            "type": "core",
+            "name": "Control Plane API",
+            "status": "connected",
+            "lastSync": now,
+        },
+        {
+            "id": "memory-service",
+            "type": "service",
+            "name": "Memory Service",
+            "status": "configured" if bool(getattr(settings, "memory_service_url", "")) else "not_configured",
+            "lastSync": now,
+        },
+    ]
 
 
 @app.get("/api/v1/workflows/{workflow_name}")

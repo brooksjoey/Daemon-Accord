@@ -148,6 +148,23 @@ services:
         reservations:
           memory: 1G
 
+  # Control Center (Web UI)
+  control-center:
+    build:
+      context: ./21-Control-Center/web
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_MOCK_API: "false"
+      NEXT_PUBLIC_DAEMON_ACCORD_API_BASE: http://control-plane:8080
+    depends_on:
+      control-plane:
+        condition: service_started
+    ports:
+      - "${CONTROL_CENTER_PORT:-3000}:3000"
+    restart: unless-stopped
+    profiles:
+      - control-center
+
 volumes:
   redis_data:
   postgres_data:

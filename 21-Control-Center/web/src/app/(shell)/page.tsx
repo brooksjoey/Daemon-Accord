@@ -2,6 +2,8 @@ import { getWorkflows, getRuns, isMockMode } from '@/lib/api/client';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   const workflows = await getWorkflows();
   const runs = await getRuns();
