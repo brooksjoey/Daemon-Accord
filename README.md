@@ -607,6 +607,7 @@ All tiers use the same codebase and support the same features. The difference is
 | Layer | Technology |
 |-------|-----------|
 | **Backend** | Python 3.11+, FastAPI, SQLAlchemy, SQLModel |
+| **Control Center (UI)** | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Jest |
 | **Browser Automation** | Playwright |
 | **Queue System** | Redis Streams |
 | **Database** | PostgreSQL with asyncpg |
