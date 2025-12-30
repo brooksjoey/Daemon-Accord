@@ -22,7 +22,7 @@ from .auth.api_key_auth import get_api_key_auth
 from .workflows.workflow_registry import get_workflow_registry
 from .workflows.workflow_executor import WorkflowExecutor
 from .workflows.models import WorkflowInput
-from .exceptions import PolicyViolationError, JobExecutionError, JobNotFoundError
+from .exceptions import JobExecutionError, JobNotFoundError
 
 # Execution Engine imports (optional - will fail gracefully if not available)
 try:
@@ -111,14 +111,6 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("browser_pool_not_available")
     
-    # Initialize policy enforcer
-    from .compliance.policy_enforcer import PolicyEnforcer
-    policy_enforcer = PolicyEnforcer(
-        db_session_factory=db.session,
-        redis_client=redis_client,
-    )
-    logger.info("policy_enforcer_initialized")
-    
     # Create orchestrator
     orchestrator = JobOrchestrator(
         redis_client=redis_client,
@@ -126,7 +118,6 @@ async def lifespan(app: FastAPI):
         browser_pool=browser_pool,
         db_session=db.session(),  # AsyncSession for Execution Engine
         max_concurrent_jobs=settings.max_concurrent_jobs,
-        policy_enforcer=policy_enforcer,
     )
     
     # Initialize workflow executor
@@ -227,7 +218,7 @@ async def create_job(
     orch: JobOrchestrator = Depends(get_orchestrator),
 ):
     """
-    Create a new job with policy enforcement.
+    Create a new job.
     
     Args:
         domain: Target domain (e.g., 'amazon.com')
@@ -238,7 +229,7 @@ async def create_job(
         payload: Job-specific payload data
         idempotency_key: Optional idempotency key to prevent duplicates
         timeout_seconds: Job timeout in seconds
-        authorization_mode: 'public', 'customer-authorized', or 'internal'
+        authorization_mode: Authorization mode (legacy parameter, kept for compatibility)
         
     Returns:
         Job ID and status
@@ -274,19 +265,6 @@ async def create_job(
             "job_type": job_type,
         }
         
-    except PolicyViolationError as e:
-        # Policy violation - return 403
-        logger.warning(
-            "job_creation_policy_violation",
-            error=str(e),
-            domain=domain,
-            policy_action=e.policy_action,
-            details=e.details
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Policy violation: {str(e)}"
-        )
     except ValueError as e:
         # Other validation errors
         logger.warning("job_creation_validation_error", error=str(e), domain=domain)
@@ -545,16 +523,6 @@ async def run_workflow(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
-    except PolicyViolationError as e:
-        logger.warning(
-            "workflow_policy_violation",
-            workflow_name=workflow_name,
-            error=str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Policy violation: {str(e)}"
         )
     except JobExecutionError as e:
         logger.error(

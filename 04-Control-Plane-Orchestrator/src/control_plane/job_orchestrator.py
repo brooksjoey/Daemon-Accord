@@ -26,7 +26,6 @@ from .executor_adapter import ExecutorAdapter
 
 if TYPE_CHECKING:
     from ..database import Database
-    from ..compliance.policy_enforcer import PolicyEnforcer
     from core.browser_pool import BrowserPool
 
 logger = structlog.get_logger(__name__)
@@ -47,7 +46,6 @@ class JobOrchestrator:
         browser_pool: Optional["BrowserPool"] = None,
         db_session: Optional[AsyncSession] = None,
         max_concurrent_jobs: int = 100,
-        policy_enforcer: Optional["PolicyEnforcer"] = None,
     ) -> None:
         """
         Initialize Job Orchestrator.
@@ -58,7 +56,6 @@ class JobOrchestrator:
             browser_pool: BrowserPool from Execution Engine (optional)
             db_session: AsyncSession for Execution Engine (optional)
             max_concurrent_jobs: Maximum concurrent job executions
-            policy_enforcer: Policy enforcer for compliance (optional)
         """
         self.redis = redis_client
         self.db = db  # Database instance to get async sessions
@@ -68,7 +65,6 @@ class JobOrchestrator:
         self.queue_manager = QueueManager(redis_client)
         self.state_manager = StateManager(redis_client, db)
         self.idempotency_engine = IdempotencyEngine(redis_client)
-        self.policy_enforcer = policy_enforcer  # Policy enforcer for compliance
         
         # Execution Engine adapter (lazy initialization)
         self._executor_adapter: Optional[ExecutorAdapter] = None
@@ -123,15 +119,13 @@ class JobOrchestrator:
         ip_address: Optional[str] = None,
     ) -> str:
         """
-        Create a new job with idempotency check and policy enforcement.
+        Create a new job with idempotency check.
         
         Args:
-            authorization_mode: 'public', 'customer-authorized', or 'internal'
-            user_id: User/API key ID for audit logging
-            ip_address: Request IP address for audit logging
+            authorization_mode: Authorization mode (legacy parameter, kept for compatibility)
+            user_id: User/API key ID (legacy parameter)
+            ip_address: Request IP address (legacy parameter)
         """
-        from ..compliance.models import AuthorizationMode as AuthMode
-        
         # Generate job ID
         job_id = str(uuid.uuid4())
         
@@ -141,50 +135,6 @@ class JobOrchestrator:
             if existing:
                 logger.info("idempotent_job_found", job_id=existing, idempotency_key=idempotency_key)
                 return existing
-        
-        # Policy enforcement at job creation time
-        if self.policy_enforcer:
-            try:
-                auth_mode = AuthMode(authorization_mode.lower())
-                allowed, action, reason, context = await self.policy_enforcer.check_policy(
-                    job_id=job_id,
-                    domain=domain,
-                    url=url,
-                    strategy=strategy,
-                    authorization_mode=auth_mode,
-                    user_id=user_id,
-                    ip_address=ip_address,
-                )
-                
-                if not allowed:
-                    # Policy violation - reject job
-                    from ..exceptions import PolicyViolationError
-                    logger.warning(
-                        "job_rejected_by_policy",
-                        job_id=job_id,
-                        domain=domain,
-                        reason=reason,
-                        action=action.value if hasattr(action, 'value') else str(action)
-                    )
-                    raise PolicyViolationError(
-                        f"Policy violation: {reason}",
-                        policy_action=action.value if hasattr(action, 'value') else str(action),
-                        domain=domain,
-                        details=context
-                    )
-            except PolicyViolationError:
-                raise  # Re-raise policy violations
-            except Exception as e:
-                logger.error(
-                    "error_checking_policy",
-                    job_id=job_id,
-                    domain=domain,
-                    error=str(e),
-                    exc_info=True
-                )
-                # Fail open in case of policy check errors (can be configured)
-                # For now, we'll allow the job to proceed if policy check fails
-                # In production, consider failing closed for security
         
         # Create job record
         job = Job(
@@ -233,60 +183,13 @@ class JobOrchestrator:
         return job_id
     
     async def process_job(self, job_id: str):
-        """Process a single job with policy enforcement at execution time."""
-        from ..compliance.models import AuthorizationMode as AuthMode
-        
+        """Process a single job."""
         # Get job from DB
         async with self.db.session() as session:
             job = await session.get(Job, job_id)
             if not job:
                 logger.error("job_not_found", job_id=job_id)
                 raise JobNotFoundError(job_id)
-            
-            # Policy enforcement at execution time (hard stop)
-            if self.policy_enforcer:
-                try:
-                    # Increment concurrency counter
-                    await self.policy_enforcer.increment_concurrency(job.domain)
-                    
-                    # Re-check policy at execution time (policy may have changed)
-                    # Default to public if not specified
-                    auth_mode = AuthMode.PUBLIC  # Can be stored in job metadata if needed
-                    allowed, action, reason, context = await self.policy_enforcer.check_policy(
-                        job_id=job_id,
-                        domain=job.domain,
-                        url=job.url,
-                        strategy=job.strategy,
-                        authorization_mode=auth_mode,
-                    )
-                    
-                    if not allowed:
-                        # Hard stop - cancel job
-                        job.status = JobStatus.CANCELLED.value
-                        job.error = f"Policy violation at execution: {reason}"
-                        job.completed_at = datetime.utcnow()
-                        await session.commit()
-                        
-                        # Decrement concurrency
-                        await self.policy_enforcer.decrement_concurrency(job.domain)
-                        
-                        logger.warning(
-                            "job_cancelled_policy_violation",
-                            job_id=job_id,
-                            domain=job.domain,
-                            reason=reason
-                        )
-                        return
-                except Exception as e:
-                    logger.error(
-                        "error_checking_policy_execution",
-                        job_id=job_id,
-                        domain=job.domain,
-                        error=str(e),
-                        exc_info=True
-                    )
-                    # Continue execution if policy check fails (fail open)
-                    # In production, consider failing closed for security
             
             # Update status
             job.status = JobStatus.RUNNING.value
@@ -347,10 +250,6 @@ class JobOrchestrator:
                     job.result = json.dumps(result_data)
                     job.artifacts = json.dumps(result.get("artifacts", []))
                     job.error = None
-                    
-                    # Decrement concurrency counter
-                    if self.policy_enforcer:
-                        await self.policy_enforcer.decrement_concurrency(job.domain)
                 else:
                     # Execution failed - check if we should retry
                     if job.attempts < job.max_attempts:
@@ -363,10 +262,6 @@ class JobOrchestrator:
                             max_attempts=job.max_attempts,
                             error=error
                         )
-                        
-                        # Decrement concurrency counter (will be incremented again on retry)
-                        if self.policy_enforcer:
-                            await self.policy_enforcer.decrement_concurrency(job.domain)
                     else:
                         job.status = JobStatus.FAILED.value
                         job.completed_at = datetime.utcnow()
@@ -378,10 +273,6 @@ class JobOrchestrator:
                             max_attempts=job.max_attempts,
                             error=error
                         )
-                        
-                        # Decrement concurrency counter
-                        if self.policy_enforcer:
-                            await self.policy_enforcer.decrement_concurrency(job.domain)
                 
                 await session.commit()
             
@@ -420,16 +311,8 @@ class JobOrchestrator:
                 if job.attempts >= job.max_attempts:
                     job.status = JobStatus.FAILED.value
                     job.completed_at = datetime.utcnow()
-                    
-                    # Decrement concurrency counter
-                    if self.policy_enforcer:
-                        await self.policy_enforcer.decrement_concurrency(job.domain)
                 else:
                     job.status = JobStatus.PENDING.value
-                    
-                    # Decrement concurrency counter (will be incremented again on retry)
-                    if self.policy_enforcer:
-                        await self.policy_enforcer.decrement_concurrency(job.domain)
                     # Requeue with backoff and job data
                     job_data = {
                         "id": job_id,
