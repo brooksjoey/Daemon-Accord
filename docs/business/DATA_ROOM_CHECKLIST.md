@@ -30,7 +30,7 @@ cat src/worker.py
 
 ## Module 2: Safety & Observability (02-Safety-Observability)
 
-### Security & Compliance
+### Security
 - [x] **Rate Limiting:** `src/targets/rate_limiter.py`, `src/safety/rate_limiter.py`
 - [x] **Circuit Breakers:** `src/safety/circuit_breaker.py`
 - [x] **Target Registry:** `src/targets/target_registry.py`
@@ -77,20 +77,17 @@ cat 03-Intelligence-Memory-Service/src/vectors/*.py
 
 ## Module 4: Control Plane Orchestrator (04-Control-Plane-Orchestrator)
 
-### Policy & Compliance (CRITICAL FOR DUE DILIGENCE)
-- [x] **Policy Enforcer:** `src/compliance/policy_enforcer.py` (lines 61-476)
-  - Domain allowlist/denylist enforcement
-  - Rate limiting per domain
-  - Concurrency limiting per domain
-  - Strategy restrictions by authorization mode
-- [x] **Policy Models:** `src/compliance/models.py`
-  - `DomainPolicy` (lines 28-71) - Domain-level policies
-  - `AuditLog` (lines 73-109) - Complete audit trail
-  - `AuthorizationMode` enum - Public/Customer/Internal
-- [x] **Audit Logging:** `src/compliance/policy_enforcer.py` (lines 427-476)
-  - Every policy decision logged
-  - Full request context preserved
-  - Immutable audit trail
+### Security Features
+- [x] **API Authentication:** `src/auth/api_key_auth.py`
+  - API key authentication
+  - Optional authentication mode
+- [x] **Rate Limiting:** `src/auth/rate_limiter.py`
+  - Redis-based rate limiting
+  - Per-endpoint limits
+- [x] **Job Orchestration:** `src/control_plane/job_orchestrator.py`
+  - Priority-based job queuing
+  - Idempotency support
+  - Status tracking
 
 ### Job Orchestration
 - [x] **Job Orchestrator:** `src/control_plane/job_orchestrator.py`
@@ -173,7 +170,7 @@ docker compose config
 
 ### Production Readiness
 - [x] **Proof Pack:** `scripts/proof_pack/run_proof_pack.py`
-- [x] **Production Readiness Report:** `PRODUCTION_READINESS_REPORT.md`
+- [x] **Production Readiness Report:** `docs/business/PRODUCTION_READINESS_REPORT.md`
 - [x] **One-Command Demo:** `scripts/demo.sh` (Linux/Mac) or `scripts/demo.ps1` (Windows)
 
 ---

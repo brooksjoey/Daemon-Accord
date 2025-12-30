@@ -119,11 +119,12 @@ def _settings_from_app(request: Request) -> WorkerLeaseSettings:
 # -------------------------
 
 
-def get_session(request: Request) -> AsyncSession:
+async def get_session(request: Request):
     db = getattr(request.app.state, "db", None)
     if db is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="DB not initialized")
-    return db.session()
+    async with db.session() as session:
+        yield session
 
 
 def get_queue_manager(request: Request) -> QueueManager:
@@ -220,77 +221,72 @@ async def claim_job(
         return ClaimResponse(claimed=False)
 
     # Transaction: lease + attempt + job state
-    try:
-        async with session.begin():
-            job: Job | None = await session.get(Job, job_id, with_for_update=True)
-            if not job:
-                # Job deleted; safe to ack and move on.
-                # (No DB change required because canonical record is gone.)
-                pass
-            else:
-                # If job already terminal, safe to ack and move on.
-                if job.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
-                    pass
-                else:
-                    existing_lease = await session.get(JobLease, job_id)
-                    if existing_lease and existing_lease.expires_at > utcnow():
-                        # Another worker owns it; do not ack. Let it be reclaimed/reaped later.
-                        return ClaimResponse(claimed=False)
+    async with session.begin():
+        job: Job | None = await session.get(Job, job_id, with_for_update=True)
+        if not job:
+            # Job deleted; safe to ack and move on.
+            # (No DB change required because canonical record is gone.)
+            await qm.ack(stream, message_id)
+            return ClaimResponse(claimed=False)
 
-                    # Replace lease if expired.
-                    if existing_lease:
-                        await session.delete(existing_lease)
-                        await session.flush()
+        # If job already terminal, safe to ack and move on.
+        if job.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
+            await qm.ack(stream, message_id)
+            return ClaimResponse(claimed=False)
 
-                    attempt_no = int(job.attempts or 0) + 1
-                    attempt = JobAttempt(job_id=str(job.id), attempt_no=attempt_no, worker_id=req.worker_id)
-                    session.add(attempt)
-                    await session.flush()  # allocate attempt.id
+        existing_lease = await session.get(JobLease, job_id)
+        if existing_lease and existing_lease.expires_at > utcnow():
+            # Another worker owns it; do not ack. Let it be reclaimed/reaped later.
+            return ClaimResponse(claimed=False)
 
-                    lease = JobLease.new(
-                        job_id=str(job.id),
-                        worker_id=req.worker_id,
-                        attempt_id=attempt.id,
-                        ttl_seconds=settings.lease_ttl_seconds,
-                    )
-                    session.add(lease)
+        # Replace lease if expired.
+        if existing_lease:
+            await session.delete(existing_lease)
+            await session.flush()
 
-                    job.attempts = attempt_no
-                    job.status = JobStatus.RUNNING
-                    if not job.started_at:
-                        job.started_at = _utcnow_naive()
-                    # Add updated_at if present (added via migration); tolerate older DBs.
-                    if hasattr(job, "updated_at"):
-                        setattr(job, "updated_at", _utcnow_naive())
+        attempt_no = int(job.attempts or 0) + 1
+        attempt = JobAttempt(job_id=str(job.id), attempt_no=attempt_no, worker_id=req.worker_id)
+        session.add(attempt)
+        await session.flush()  # allocate attempt.id
 
-                    payload = _job_payload_snapshot(job)
+        lease = JobLease.new(
+            job_id=str(job.id),
+            worker_id=req.worker_id,
+            attempt_id=attempt.id,
+            ttl_seconds=settings.lease_ttl_seconds,
+        )
+        session.add(lease)
 
-                    logger.info(
-                        "job_claimed",
-                        job_id=str(job.id),
-                        worker_id=req.worker_id,
-                        attempt_id=str(attempt.id),
-                        stream=stream,
-                        message_id=message_id,
-                    )
+        job.attempts = attempt_no
+        job.status = JobStatus.RUNNING
+        if not job.started_at:
+            job.started_at = _utcnow_naive()
+        # Add updated_at if present (added via migration); tolerate older DBs.
+        if hasattr(job, "updated_at"):
+            setattr(job, "updated_at", _utcnow_naive())
 
-                    return ClaimResponse(
-                        claimed=True,
-                        job_id=str(job.id),
-                        attempt_id=attempt.id,
-                        lease_token=lease.lease_token,
-                        lease_ttl_seconds=settings.lease_ttl_seconds,
-                        heartbeat_interval_seconds=settings.heartbeat_interval_seconds,
-                        stream=stream,
-                        message_id=message_id,
-                        payload=payload,
-                    )
-    finally:
-        await session.close()
+        payload = _job_payload_snapshot(job)
 
-    # If we reached here, job is missing or terminal: ack and return claimed=false.
-    await qm.ack(stream, message_id)
-    return ClaimResponse(claimed=False)
+    logger.info(
+        "job_claimed",
+        job_id=str(job.id),
+        worker_id=req.worker_id,
+        attempt_id=str(attempt.id),
+        stream=stream,
+        message_id=message_id,
+    )
+
+    return ClaimResponse(
+        claimed=True,
+        job_id=str(job.id),
+        attempt_id=attempt.id,
+        lease_token=lease.lease_token,
+        lease_ttl_seconds=settings.lease_ttl_seconds,
+        heartbeat_interval_seconds=settings.heartbeat_interval_seconds,
+        stream=stream,
+        message_id=message_id,
+        payload=payload,
+    )
 
 
 @router.post("/heartbeat", response_model=HeartbeatResponse)
@@ -304,7 +300,6 @@ async def heartbeat(
         lease = await _require_active_lease(session, req.job_id, req.worker_id, req.lease_token)
         lease.expires_at = utcnow() + timedelta(seconds=settings.lease_ttl_seconds)
         session.add(lease)
-    await session.close()
     return HeartbeatResponse(ok=True, lease_expires_at=lease.expires_at)
 
 
@@ -347,8 +342,6 @@ async def complete(
             session.add(attempt)
 
         await session.delete(lease)
-
-    await session.close()
     return FinalizeResponse(ok=True, ack=True)
 
 
@@ -399,8 +392,6 @@ async def fail(
             job.completed_at = _utcnow_naive()
             if hasattr(job, "updated_at"):
                 setattr(job, "updated_at", _utcnow_naive())
-
-    await session.close()
 
     # Transport actions AFTER commit:
     if should_retry:

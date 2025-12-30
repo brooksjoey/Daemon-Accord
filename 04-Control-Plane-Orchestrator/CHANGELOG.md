@@ -2,7 +2,7 @@
 
 All notable changes to the Control Plane Orchestrator.
 
-## [Operational Release] - 2024
+## [Operational Release] - 2025
 
 ### Critical Architectural Fixes
 

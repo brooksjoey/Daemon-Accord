@@ -1,6 +1,6 @@
 # Daemon Accord - One Pager
 
-**Policy-Driven Web Automation Platform**
+**Web Automation Platform**
 
 ---
 
@@ -10,20 +10,20 @@ Organizations need to monitor, extract, and validate web content at scale, but f
 
 1. **Manual Monitoring is Expensive:** Teams spend 10-20 hours/week manually checking pages for changes, new content, or downtime
 2. **Error-Prone Processes:** Manual checks miss changes, introduce errors, and don't scale
-3. **No Compliance Controls:** Existing tools lack policy controls, audit trails, and authorization management
+3. **Limited Automation Tools:** Existing tools lack production-ready workflows, scalable architecture, and enterprise features
 
-**Result:** High operational costs, missed changes, compliance risks, and inability to scale.
+**Result:** High operational costs, missed changes, and inability to scale automation efforts.
 
 ---
 
 ## The Solution
 
-**Daemon Accord** is a policy-driven automation platform that:
+**Daemon Accord** is a web automation platform that:
 
 - ✅ **Automates Web Monitoring:** Monitor pages for changes, extract structured data, verify uptime
-- ✅ **Policy-Controlled:** Domain allowlist/denylist, rate limits, concurrency controls, authorization-based access
-- ✅ **Fully Audited:** Complete audit trail of all decisions and actions
-- ✅ **Production-Ready:** Deployable in minutes, runs on 8GB RAM, proven on real targets
+- ✅ **Production-Ready Workflows:** Three ready-to-use workflows for common automation tasks
+- ✅ **Scalable Architecture:** Flexible deployment tiers from starter to enterprise
+- ✅ **Enterprise-Grade:** Deployable in minutes, runs on 8GB RAM, proven on real targets
 
 **Deployment:** `docker compose -f docker-compose.prod.yml up -d`  
 **Proof:** Production Proof Pack validates end-to-end functionality on any fresh VM
@@ -136,11 +136,11 @@ Organizations need to monitor, extract, and validate web content at scale, but f
 
 ## Key Differentiators
 
-1. **Policy-Driven:** Not a "scraping tool" - full policy controls and audit logging
-2. **Production-Ready:** Deployable in minutes, proven on real targets
-3. **Compliance-Safe:** Complete audit trail, authorization-based access
-4. **Workflow-First:** Ready-to-use workflows, not just raw automation
-5. **Enterprise-Grade:** Advanced features for enterprise customers
+1. **Production-Ready:** Deployable in minutes, proven on real targets
+2. **Workflow-First:** Ready-to-use workflows, not just raw automation
+3. **Scalable Architecture:** Flexible deployment tiers from starter to enterprise
+4. **Enterprise-Grade:** Advanced features for enterprise customers
+5. **Comprehensive Monitoring:** Health checks, queue statistics, operational dashboards
 
 ---
 

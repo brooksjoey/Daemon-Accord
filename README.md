@@ -2,13 +2,13 @@
 
 # Daemon Accord
 
-**Policy-Driven Web Automation Platform**
+**Web Automation Platform**
 
-*Enterprise-grade automation with compliance controls, audit logging, and production-ready workflows*
+*Enterprise-grade automation with production-ready workflows and scalable architecture*
 
 ---
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-28a745?style=for-the-badge)](PRODUCTION_READINESS_REPORT.md)
+[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-28a745?style=for-the-badge)](docs/business/PRODUCTION_READINESS_REPORT.md)
 [![License](https://img.shields.io/badge/License-See%20LICENSE-0078d4?style=for-the-badge)](LICENSE)
 [![Deployment](https://img.shields.io/badge/Deploy-One%20Command-00a4ef?style=for-the-badge)](docs/DEPLOYMENT.md)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=for-the-badge&logo=python)](https://www.python.org/)
@@ -20,13 +20,13 @@
 
 ## 🎯 Overview
 
-Daemon Accord is a **policy-driven web automation platform** designed for enterprise deployment. Built with compliance controls, comprehensive audit logging, and production-ready workflows, it transforms web automation from a technical capability into a **governed, auditable business process**.
+Daemon Accord is a **web automation platform** designed for enterprise deployment. Built with production-ready workflows, scalable architecture, and comprehensive monitoring, it transforms web automation from a technical capability into a **reliable, production-grade service**.
 
 **Key Differentiators:**
-- ✅ **Policy-Driven:** Not a scraping tool—full compliance controls and audit trails
 - ✅ **Production-Ready:** Deploy in minutes, validated on fresh VMs
 - ✅ **Enterprise-Grade:** Advanced features for enterprise customers
-- ✅ **Compliance-Safe:** Complete audit logging and authorization controls
+- ✅ **Scalable Architecture:** Flexible deployment tiers from starter to enterprise
+- ✅ **Workflow-First:** Ready-to-use workflows for common automation tasks
 
 ---
 
@@ -142,42 +142,42 @@ curl http://localhost:8082/api/v1/ops/status
 
 ## ✨ Core Features
 
-### 🛡️ Policy-Driven Automation
+### ⚡ Core Automation Features
 
 <table>
 <tr>
 <td width="50%">
 
-**Domain Controls**
-- Allowlist/denylist management
-- Per-domain policy configuration
-- Strategy restrictions by domain
+**Job Orchestration**
+- Priority-based job queuing
+- Idempotency support
+- Real-time status tracking
 
 </td>
 <td width="50%">
 
-**Rate Limiting**
-- Per-domain limits (per minute/hour)
-- Redis-based counters
-- Automatic expiration
+**Execution Strategies**
+- Multiple execution modes
+- Browser automation
+- Custom executors
 
 </td>
 </tr>
 <tr>
 <td>
 
-**Concurrency Control**
-- Maximum concurrent jobs per domain
-- Real-time tracking
-- Automatic enforcement
+**Queue Management**
+- Redis Streams backend
+- Priority queues
+- Dead letter queue support
 
 </td>
 <td>
 
-**Authorization Modes**
-- Public (vanilla only)
-- Customer-authorized (vanilla + stealth)
-- Internal/Enterprise (all strategies)
+**Monitoring & Observability**
+- Health checks
+- Queue statistics
+- Operational dashboards
 
 </td>
 </tr>
@@ -209,46 +209,20 @@ curl http://localhost:8082/api/v1/ops/status
 
 **See:** [Execution Strategies Guide](docs/EXECUTION_STRATEGIES.md) for complete details.
 
-### 🔒 Compliance & Security
+### 🔒 Security & Monitoring
 
 <div align="center">
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Policy Enforcement** | At submission and execution time | ✅ Active |
-| **Audit Logging** | Complete trail of all decisions | ✅ Active |
-| **Defense in Depth** | Multiple enforcement points | ✅ Active |
-| **Authorization Controls** | Strategy restrictions by level | ✅ Active |
+| **API Authentication** | API key support | ✅ Available |
+| **Rate Limiting** | Request throttling | ✅ Available |
+| **Health Monitoring** | Service health checks | ✅ Active |
+| **Operational Dashboards** | Real-time system metrics | ✅ Active |
 
 </div>
 
-**See:** [Security & Compliance Documentation](docs/SECURITY_AND_COMPLIANCE.md) for complete details.
-
-### 🔍 Proof: Where Compliance Features Live
-
-**For Buyers:** Direct file paths to verify enterprise-grade claims.
-
-| Feature | Location | How to Verify |
-|---------|----------|---------------|
-| **Audit Logs** | `04-Control-Plane-Orchestrator/src/compliance/models.py` (lines 73-109)<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 427-476) | Database table: `audit_logs`<br>Every policy decision logged with full context |
-| **Domain Policies** | `04-Control-Plane-Orchestrator/src/compliance/models.py` (lines 28-71)<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 61-476) | Database table: `domain_policies`<br>Allowlist/denylist, rate limits, concurrency limits |
-| **Policy Enforcement** | `04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 61-476)<br>`04-Control-Plane-Orchestrator/src/control_plane/job_orchestrator.py` | Enforced at submission (line 61) and execution time (defense in depth) |
-| **Authorization Controls** | `04-Control-Plane-Orchestrator/src/compliance/models.py` (AuthorizationMode enum)<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 132-180) | Strategy restrictions by authorization mode (public/customer/internal) |
-| **Rate Limiting** | `02-Safety-Observability/src/targets/rate_limiter.py`<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 181-250) | Redis-based counters with automatic expiration |
-| **Artifact Capture** | `02-Safety-Observability/src/artifacts/artifact_manager.py`<br>`02-Safety-Observability/src/artifacts/evidence_packager.py` | Screenshots, HTML snapshots, diffs stored in `artifacts/` directory |
-| **Retention Policy** | Database schema (Alembic migrations)<br>`04-Control-Plane-Orchestrator/alembic/versions/` | Audit logs: append-only (no deletion)<br>Jobs: configurable retention via database policies |
-
-**Quick Verification Commands:**
-```bash
-# View audit logs
-docker compose exec postgres psql -U postgres -d daemon_accord -c "SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 10;"
-
-# View domain policies
-docker compose exec postgres psql -U postgres -d daemon_accord -c "SELECT domain, allowed, denied, rate_limit_per_minute, max_concurrent_jobs FROM domain_policies;"
-
-# View artifacts
-ls -la artifacts/
-```
+**See:** [Security Documentation](04-Control-Plane-Orchestrator/SECURITY.md) for complete details.
 
 ### ✅ Production Validation
 
@@ -257,7 +231,7 @@ ls -la artifacts/
 - **CI/CD Pipeline:** Automated tests, security scanning, quality gates
 - **One-Command Deployment:** Docker Compose for dev and production
 
-**See:** [Production Readiness Report](PRODUCTION_READINESS_REPORT.md) for complete validation evidence.
+**See:** [Production Readiness Report](docs/business/PRODUCTION_READINESS_REPORT.md) for complete validation evidence.
 
 ---
 
@@ -303,7 +277,7 @@ ls -la artifacts/
 | **01-Core-Execution-Engine** | Playwright, Python | Browser automation, evasion techniques |
 | **02-Safety-Observability** | Redis, Circuit Breakers | Rate limiting, artifact capture, safety |
 | **03-Intelligence-Memory-Service** | PostgreSQL, pgvector | AI learning, strategy optimization |
-| **04-Control-Plane-Orchestrator** | FastAPI, Redis Streams | Job orchestration, policy enforcement |
+| **04-Control-Plane-Orchestrator** | FastAPI, Redis Streams | Job orchestration, queue management |
 | **05-Deploy-Monitoring-Infra** | Docker, Kubernetes | Containerization, monitoring |
 
 **See:** [Architecture Documentation](docs/ARCHITECTURE_CONTAINER.md) for complete details.
@@ -330,7 +304,7 @@ ls -la artifacts/
 
 | Document | Description | Link |
 |----------|-------------|------|
-| **Security & Compliance** | Policy controls and compliance | [📖 View](docs/SECURITY_AND_COMPLIANCE.md) |
+| **Security** | Security features and best practices | [📖 View](04-Control-Plane-Orchestrator/SECURITY.md) |
 | **Execution Strategies** | Strategy guide and positioning | [📖 View](docs/EXECUTION_STRATEGIES.md) |
 | **Proof Pack** | Production validation guide | [📖 View](docs/PROOF_PACK.md) |
 
@@ -462,29 +436,22 @@ pytest tests/e2e/        # E2E tests
 
 ---
 
-## 🔐 Security & Compliance
+## 🔐 Security
 
-### Policy Controls
+### Security Features
 
 <div align="center">
 
-| Control | Description | Enforcement |
-|---------|-------------|-------------|
-| **Domain Allowlist/Denylist** | Control which domains can be accessed | Submission + Execution |
-| **Rate Limiting** | Per-domain limits (per minute/hour) | Submission + Execution |
-| **Concurrency Limits** | Maximum concurrent jobs per domain | Submission + Execution |
-| **Strategy Restrictions** | Based on authorization mode | Submission + Execution |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **API Authentication** | API key authentication | ✅ Available |
+| **Rate Limiting** | Request throttling | ✅ Available |
+| **HTTPS Support** | TLS encryption | ✅ Configurable |
+| **Input Validation** | Request validation | ✅ Active |
 
 </div>
 
-### Audit Logging
-
-- ✅ Every policy decision logged
-- ✅ Complete request context (user, IP, timestamp)
-- ✅ Immutable audit trail
-- ✅ Exportable for compliance reporting
-
-**See:** [Security & Compliance Documentation](docs/SECURITY_AND_COMPLIANCE.md) for complete details.
+**See:** [Security Documentation](04-Control-Plane-Orchestrator/SECURITY.md) for complete details.
 
 ---
 
@@ -502,7 +469,7 @@ pytest tests/e2e/        # E2E tests
 
 </div>
 
-**See:** [Production Readiness Report](PRODUCTION_READINESS_REPORT.md) for complete validation.
+**See:** [Production Readiness Report](docs/business/PRODUCTION_READINESS_REPORT.md) for complete validation.
 
 ---
 
@@ -590,7 +557,7 @@ All tiers use the same codebase and support the same features. The difference is
 |----------|----------|
 | **Source Code** | All 5 components (Core, Safety, Memory, Control Plane, Deploy) |
 | **Workflows** | 3 production-ready workflows |
-| **Compliance** | Policy engine and audit logging |
+| **Security** | API authentication and rate limiting |
 | **Tests** | Unit, integration, E2E tests (50+) |
 | **Documentation** | Complete guides and API docs |
 | **Deployment** | Docker Compose for dev and production |
@@ -646,9 +613,9 @@ See [LICENSE](LICENSE) file for details.
 
 ## Daemon Accord
 
-**Policy-Driven Web Automation Platform**
+**Web Automation Platform**
 
-[Production Ready](PRODUCTION_READINESS_REPORT.md) • [Documentation](docs/) • [Deployment](docs/DEPLOYMENT.md) • [Security](docs/SECURITY_AND_COMPLIANCE.md)
+[Production Ready](docs/business/PRODUCTION_READINESS_REPORT.md) • [Documentation](docs/) • [Deployment](docs/DEPLOYMENT.md) • [Security](04-Control-Plane-Orchestrator/SECURITY.md)
 
 **Version 1.0.0** • **Last Updated:** 2024-01-01
 

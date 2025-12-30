@@ -41,7 +41,7 @@ $filesToArchive = @(
 # Files to keep (production/user-facing)
 $filesToKeep = @(
     "README.md",
-    "PRODUCTION_READINESS_REPORT.md",
+    "docs/business/PRODUCTION_READINESS_REPORT.md",
     "LICENSE"
 )
 

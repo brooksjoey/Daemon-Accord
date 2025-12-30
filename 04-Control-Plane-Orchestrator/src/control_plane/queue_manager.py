@@ -46,18 +46,21 @@ class QueueManager:
         Returns: (stream, message_id, fields)
         """
         await self.ensure_consumer_groups(streams)
-        for stream in streams:
-            resp = await self.redis.xreadgroup(
-                groupname=self.consumer_group,
-                consumername=consumer,
-                streams={stream: ">"},
-                count=1,
-                block=max_wait_ms,
-            )
-            if resp:
-                stream_name, entries = resp[0]
-                message_id, fields = entries[0]
-                return str(stream_name), str(message_id), dict(fields)
+
+        # One XREADGROUP call across all streams so total block time is max_wait_ms (not N * max_wait_ms).
+        stream_map = {s: ">" for s in streams}
+        resp = await self.redis.xreadgroup(
+            groupname=self.consumer_group,
+            consumername=consumer,
+            streams=stream_map,
+            count=1,
+            block=max_wait_ms,
+        )
+        if resp:
+            # resp: [(stream, [(message_id, fields)]) ...]
+            stream_name, entries = resp[0]
+            message_id, fields = entries[0]
+            return str(stream_name), str(message_id), dict(fields)
         return None
 
     async def ack(self, stream: str, message_id: str) -> None:

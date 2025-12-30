@@ -29,11 +29,12 @@ class ReconcileResponse(BaseModel):
     streams: List[str]
 
 
-def get_session(request: Request) -> AsyncSession:
+async def get_session(request: Request):
     db = getattr(request.app.state, "db", None)
     if db is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="DB not initialized")
-    return db.session()
+    async with db.session() as session:
+        yield session
 
 
 def get_queue_manager(request: Request) -> QueueManager:
@@ -82,7 +83,6 @@ async def reconcile_queue(
             batch_size=req.batch_size,
         )
 
-    await session.close()
     logger.info("queue_reconciled", requeued=total, streams=streams)
     return ReconcileResponse(ok=True, requeued=total, streams=streams)
 
