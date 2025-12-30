@@ -44,13 +44,13 @@ class EnhancedExecutor(StandardExecutor):
         
         try:
             await self._setup_artifact_capture(page, job_id)
-            
-            if job_type in ['price_extraction']:
-                result = await self._execute_price_extraction(page, job_data)
-            elif job_type in ['login']:
-                result = await self._execute_login(page, job_data)
-            else:
-                result = await super()._execute_job(job_data)
+
+            # Prefer the new action system, reusing the session page.
+            from core.action_adapter import execute_action_as_job_result
+
+            result = await execute_action_as_job_result(
+                job_data, browser_pool=self.pool, page=page
+            )
             
             artifacts = await self._collect_artifacts(page, job_data)
             result.artifacts.update(artifacts)
@@ -60,72 +60,6 @@ class EnhancedExecutor(StandardExecutor):
         finally:
             if session_key not in self.active_sessions:
                 await self.pool.release_page(page)
-    
-    async def _execute_price_extraction(self, page: Page, job_data: Dict[str, Any]) -> JobResult:
-        start_time = time.time()
-        target = job_data.get('target', {})
-        url = target.get('url', '')
-        selectors = job_data.get('selectors', [])
-        
-        try:
-            await page.goto(url, wait_until='networkidle', timeout=10000)
-            
-            extracted_data = {}
-            for selector in selectors:
-                elements = await page.query_selector_all(selector)
-                values = []
-                for element in elements:
-                    text = await element.text_content()
-                    if text:
-                        values.append(text.strip())
-                extracted_data[selector] = values
-            
-            execution_time = time.time() - start_time
-            logger.info(f"Price extraction completed in {execution_time:.2f}s")
-            
-            return JobResult(
-                job_id=job_data.get('id', ''),
-                status=JobStatus.SUCCESS,
-                data={'extracted': extracted_data},
-                artifacts={},
-                execution_time=execution_time
-            )
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            raise Exception(f"Price extraction failed: {str(e)}")
-    
-    async def _execute_login(self, page: Page, job_data: Dict[str, Any]) -> JobResult:
-        start_time = time.time()
-        target = job_data.get('target', {})
-        url = target.get('url', '')
-        credentials = await self._get_credentials(job_data)
-        
-        try:
-            await page.goto(url, wait_until='networkidle')
-            
-            login_success = await self._perform_login_sequence(page, credentials)
-            
-            if login_success:
-                cookies = await page.context.cookies()
-                await self._persist_session(cookies, job_data)
-                
-                execution_time = time.time() - start_time
-                logger.info(f"Login completed in {execution_time:.2f}s")
-                
-                return JobResult(
-                    job_id=job_data.get('id', ''),
-                    status=JobStatus.SUCCESS,
-                    data={'authenticated': True, 'cookies': len(cookies)},
-                    artifacts={},
-                    execution_time=execution_time
-                )
-            else:
-                raise Exception("Login sequence failed")
-                
-        except Exception as e:
-            execution_time = time.time() - start_time
-            raise Exception(f"Login failed: {str(e)}")
     
     async def _get_session_key(self, job_data: Dict[str, Any]) -> str:
         target = job_data.get('target', {})

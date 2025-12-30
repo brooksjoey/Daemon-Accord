@@ -1,4 +1,4 @@
-from .base_action import BaseAction, ActionContext, ActionResult
+from .legacy_base_action import BaseAction, ActionContext, ActionResult
 
 class CustomAction(BaseAction):
     action_type = "custom"

@@ -1,74 +1,50 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-from datetime import datetime
-import hashlib
-import json
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
+from playwright.async_api import Page
+
+
+class ActionError(Exception):
+    """Base class for all action errors."""
+
+
+class ActionRetryableError(ActionError):
+    """An error that should be retried (network flake, transient timeouts, etc.)."""
+
+
+class ActionFatalError(ActionError):
+    """An error that should *not* be retried (bad params, permanent failure, etc.)."""
+
+
+@dataclass(frozen=True)
 class ActionResult:
-    def __init__(self, 
-                 action_type: str,
-                 success: bool,
-                 data: Optional[Dict[str, Any]] = None,
-                 error: Optional[str] = None,
-                 artifacts: Optional[Dict[str, str]] = None,
-                 metrics: Optional[Dict[str, float]] = None):
-        self.action_type = action_type
-        self.success = success
-        self.data = data or {}
-        self.error = error
-        self.artifacts = artifacts or {}
-        self.metrics = metrics or {}
-        self.timestamp = datetime.utcnow().isoformat()
-        self.action_id = hashlib.md5(f"{action_type}{self.timestamp}".encode()).hexdigest()[:8]
-        
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "action_type": self.action_type,
-            "success": self.success,
-            "data": self.data,
-            "error": self.error,
-            "artifacts": self.artifacts,
-            "metrics": self.metrics,
-            "timestamp": self.timestamp,
-            "action_id": self.action_id
-        }
+    """
+    Immutable action output.
 
-class ActionContext:
-    def __init__(self, 
-                 page: Any,  # Playwright Page
-                 job: Any,   # Job model
-                 domain: str,
-                 browser_pool: Optional[Any] = None,
-                 config: Optional[Dict[str, Any]] = None):
-        self.page = page
-        self.job = job
-        self.domain = domain
-        self.browser_pool = browser_pool
-        self.config = config or {}
-        self.state = {}
-        self._start_time = datetime.utcnow()
-        
-    def elapsed_ms(self) -> float:
-        return (datetime.utcnow() - self._start_time).total_seconds() * 1000
+    Note: `data` is deep-copied on creation to prevent accidental mutation.
+    """
+
+    success: bool
+    data: Dict[str, Any]
+    error: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "data", deepcopy(self.data))
+
 
 class BaseAction(ABC):
-    action_type = "base"
-    
+    """
+    New action contract: deterministic, dependency-injected, and easy to test.
+
+    Implementers should raise ActionRetryableError / ActionFatalError on failures.
+    """
+
+    name: str = "base"
+
     @abstractmethod
-    async def execute(self, context: ActionContext) -> ActionResult:
-        pass
-    
-    def _create_result(self, 
-                       success: bool, 
-                       context: ActionContext,
-                       data: Optional[Dict[str, Any]] = None,
-                       error: Optional[str] = None,
-                       artifacts: Optional[Dict[str, str]] = None) -> ActionResult:
-        return ActionResult(
-            action_type=self.action_type,
-            success=success,
-            data=data or {},
-            error=error,
-            artifacts=artifacts or {},
-            metrics={"elapsed_ms": context.elapsed_ms()}
-        )
+    async def execute(self, page: Page, params: Dict[str, Any]) -> ActionResult:
+        raise NotImplementedError
