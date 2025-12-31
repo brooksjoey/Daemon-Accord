@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from playwright.async_api import Page
 import asyncio
 import time
